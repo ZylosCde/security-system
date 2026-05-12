@@ -3,18 +3,17 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Shield, Users, MapPin, AlertTriangle, Clock, CheckCircle, 
-  Play, Pause, Phone, Battery, Signal, User, QrCode, Bell 
+  Play, Battery, Signal, QrCode, Bell 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { 
-  activeSessions, officers, devices, checkpoints, violations, 
-  sosEvents, dashboardStats, routes 
-} from '@/lib/mockData';
-import { PatrolSession, Violation, SOSEvent } from '@/lib/types';
+import { officers, devices, checkpoints } from '@/lib/mockData';
+import { PatrolSession } from '@/lib/types';
+import { usePatrolStore } from '@/hooks/usePatrolStore';
+import { calculateComplianceRate } from '@/lib/routeEngine';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -114,9 +113,7 @@ function LiveMap({ sessions }: { sessions: PatrolSession[] }) {
 }
 
 export default function AegisCommandCenter() {
-  const [sessions, setSessions] = useState(activeSessions);
-  const [activeSOS, setActiveSOS] = useState(sosEvents);
-  const [activeViolations, setActiveViolations] = useState(violations);
+  const { sessions, violations: activeViolations, sosEvents: activeSOS, updateSession, resolveViolation, resolveSOS } = usePatrolStore();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showSimulator, setShowSimulator] = useState(false);
 
@@ -143,22 +140,18 @@ export default function AegisCommandCenter() {
   }, []);
 
   const handleResolveSOS = (id: string) => {
-    setActiveSOS(prev => prev.map(s => 
-      s.id === id ? { ...s, status: 'resolved' as const, resolvedAt: new Date().toISOString() } : s
-    ));
+    resolveSOS(id, 'Incident resolved from command center.');
     toast.success('SOS marked resolved', { description: 'Resolution note saved to audit log.' });
   };
 
   const handleAcknowledgeViolation = (id: string) => {
-    setActiveViolations(prev => prev.map(v => 
-      v.id === id ? { ...v, resolved: true } : v
-    ));
+    resolveViolation(id);
     toast.info('Violation acknowledged', { description: 'Officer notified. Record updated.' });
   };
 
   const stats = {
-    ...dashboardStats,
     activePatrols: sessions.filter(s => s.status === 'in-progress').length,
+    complianceRate: calculateComplianceRate(sessions),
     openSOS: activeSOS.filter(s => s.status === 'active').length,
     pendingViolations: activeViolations.filter(v => !v.resolved).length,
   };
