@@ -5,6 +5,7 @@ import {
   Shield, Users, MapPin, AlertTriangle, Clock, CheckCircle, 
   Play, Battery, Signal, QrCode, Bell 
 } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -177,17 +178,17 @@ export default function AegisCommandCenter() {
           
           <nav className="space-y-px">
             {[
-              { icon: MapPin, label: "Live Operations", active: true },
-              { icon: Users, label: "Officers" },
-              { icon: Shield, label: "Devices" },
-              { icon: MapPin, label: "Checkpoints" },
-              { icon: Clock, label: "Routes & Schedules" },
-              { icon: AlertTriangle, label: "Violations" },
-              { icon: Bell, label: "Incidents" },
+              { icon: MapPin, label: "Live Operations", href: "/" },
+              { icon: Users, label: "Officers", href: "/officers" },
+              { icon: Shield, label: "Devices", href: "/devices" },
+              { icon: MapPin, label: "Checkpoints", href: "/checkpoints" },
+              { icon: Clock, label: "Routes & Schedules", href: "/schedules" },
+              { icon: AlertTriangle, label: "Violations", href: "/violations" },
+              { icon: Bell, label: "Incidents", href: "/incidents" },
             ].map((item, idx) => (
-              <a key={idx} href="#" className={`flex items-center gap-3 px-3 py-[13px] rounded-xl text-sm font-medium transition-all ${item.active ? 'nav-active text-white' : 'text-white/70 hover:text-white hover:bg-white/5'}`}>
+              <Link key={idx} href={item.href} className={`flex items-center gap-3 px-3 py-[13px] rounded-xl text-sm font-medium transition-all ${item.href === '/' ? 'nav-active text-white' : 'text-white/70 hover:text-white hover:bg-white/5'}`}>
                 <item.icon className="w-4 h-4" /> {item.label}
-              </a>
+              </Link>
             ))}
           </nav>
 
