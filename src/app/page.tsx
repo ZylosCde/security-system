@@ -18,6 +18,7 @@ import { PatrolSession, Violation, SOSEvent } from '@/lib/types';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { DeviceSimulator } from '@/components/DeviceSimulator';
 
 // Simulated live map component (beautiful SVG-based)
 function LiveMap({ sessions }: { sessions: PatrolSession[] }) {
@@ -117,6 +118,7 @@ export default function AegisCommandCenter() {
   const [activeSOS, setActiveSOS] = useState(sosEvents);
   const [activeViolations, setActiveViolations] = useState(violations);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [showSimulator, setShowSimulator] = useState(false);
 
   // Live clock + occasional random events
   useEffect(() => {
@@ -385,7 +387,7 @@ export default function AegisCommandCenter() {
 
           {/* Quick Actions Footer */}
           <div className="flex gap-4 pt-2">
-            <Button className="flex-1 h-14 text-base rounded-2xl gap-2" variant="outline" onClick={() => toast('Device Simulator opened', { description: 'Scan officer NFC to begin patrol demo.' })}>
+            <Button className="flex-1 h-14 text-base rounded-2xl gap-2" variant="outline" onClick={() => setShowSimulator(true)}>
               <QrCode /> OPEN DEVICE SIMULATOR
             </Button>
             <Button className="flex-1 h-14 text-base rounded-2xl gap-2" onClick={() => toast.success('New route template created')}>
@@ -394,6 +396,11 @@ export default function AegisCommandCenter() {
           </div>
         </div>
       </div>
+
+      {/* Device Simulator Modal */}
+      <AnimatePresence>
+        {showSimulator && <DeviceSimulator onClose={() => setShowSimulator(false)} />}
+      </AnimatePresence>
     </div>
   );
 }
