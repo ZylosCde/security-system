@@ -1,8 +1,8 @@
 import React from 'react';
-import { Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { Text, StyleSheet, Pressable, ScrollView, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../navigation/types';
+import type { PatrolStackParamList } from '../navigation/types';
 import { usePatrol } from '../context/PatrolContext';
 
 const REASONS = [
@@ -13,11 +13,11 @@ const REASONS = [
   'Other (text required)',
 ];
 
-type Nav = NativeStackNavigationProp<RootStackParamList, 'Violation'>;
+type Nav = NativeStackNavigationProp<PatrolStackParamList, 'Violation'>;
 
 export function ViolationScreen() {
   const navigation = useNavigation<Nav>();
-  const { recordViolation } = usePatrol();
+  const { recordViolation, session } = usePatrol();
 
   return (
     <ScrollView contentContainerStyle={styles.root}>
@@ -27,6 +27,10 @@ export function ViolationScreen() {
           key={r}
           style={styles.row}
           onPress={() => {
+            if (!session) {
+              Alert.alert('No active patrol', 'Start a patrol before logging a violation.');
+              return;
+            }
             recordViolation(r);
             navigation.goBack();
           }}

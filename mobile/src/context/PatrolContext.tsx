@@ -17,31 +17,38 @@ type PatrolContextValue = {
   checkpoints: Checkpoint[];
   route: Route;
   deviceId: string;
-  session: PatrolSession | null;
+  /** Bound field identity (after auth scan) */
   officer: Officer | null;
+  session: PatrolSession | null;
   scannedIds: string[];
   isOffline: boolean;
   pendingSyncCount: number;
+  sosBroadcasting: boolean;
   refreshPendingCount: () => Promise<void>;
   setOffline: (v: boolean) => void;
-  startPatrol: (officerId: string) => void;
+  bindOfficer: (officerId: string) => boolean;
+  beginPatrol: () => void;
+  /** Ends active patrol only; keeps officer bound to device */
   endPatrol: () => void;
-  /** Validates QR payload from camera or manual entry; must match expected checkpoint order */
+  /** Clears officer + session (return to auth) */
+  signOut: () => void;
   submitCheckpointScan: (checkpointId: string, qrData?: string) => { ok: boolean; message: string };
   recordViolation: (reason: string) => void;
   recordIncident: (payload: { severity: string; type: string; description: string }) => void;
   triggerSOS: () => void;
+  cancelSOS: () => void;
   flushOfflineQueue: () => Promise<number>;
 };
 
 const PatrolContext = createContext<PatrolContextValue | null>(null);
 
 export function PatrolProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<PatrolSession | null>(null);
   const [officer, setOfficer] = useState<Officer | null>(null);
+  const [session, setSession] = useState<PatrolSession | null>(null);
   const [scannedIds, setScannedIds] = useState<string[]>([]);
   const [isOffline, setIsOffline] = useState(false);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [sosBroadcasting, setSosBroadcasting] = useState(false);
 
   const refreshPendingCount = useCallback(async () => {
     setPendingSyncCount(await getQueueLength());
@@ -51,28 +58,40 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
     setIsOffline(v);
   }, []);
 
-  const startPatrol = useCallback((officerId: string) => {
-    const o = OFFICERS.find((x) => x.id === officerId);
-    if (!o || o.status === 'off-duty') return;
+  const bindOfficer = useCallback((officerId: string) => {
+    const o = OFFICERS.find((x) => x.id === officerId && x.status !== 'off-duty');
+    if (!o) return false;
+    setOfficer(o);
+    return true;
+  }, []);
+
+  const beginPatrol = useCallback(() => {
+    if (!officer) return;
     const id = `PS-${Date.now().toString().slice(-6)}`;
     const now = new Date().toISOString();
-    setOfficer(o);
     setScannedIds([]);
     setSession({
       id,
       deviceId: DEVICE_ID,
-      officerId,
+      officerId: officer.id,
       startTime: now,
       status: 'in-progress',
       checkpointsCompleted: 0,
       totalCheckpoints: DEFAULT_ROUTE.checkpoints.length,
     });
-  }, []);
+  }, [officer]);
 
   const endPatrol = useCallback(() => {
     setSession(null);
-    setOfficer(null);
     setScannedIds([]);
+    setSosBroadcasting(false);
+  }, []);
+
+  const signOut = useCallback(() => {
+    setOfficer(null);
+    setSession(null);
+    setScannedIds([]);
+    setSosBroadcasting(false);
   }, []);
 
   const submitCheckpointScan = useCallback(
@@ -183,7 +202,12 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
     };
     if (isOffline) void queueEvent({ type: 'sos', payload: sos });
     void refreshPendingCount();
+    setSosBroadcasting(true);
   }, [session, officer, isOffline, refreshPendingCount]);
+
+  const cancelSOS = useCallback(() => {
+    setSosBroadcasting(false);
+  }, []);
 
   const flushOfflineQueue = useCallback(async () => {
     const n = await syncQueue();
@@ -197,35 +221,43 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
       checkpoints: CHECKPOINTS,
       route: DEFAULT_ROUTE,
       deviceId: DEVICE_ID,
-      session,
       officer,
+      session,
       scannedIds,
       isOffline,
       pendingSyncCount,
+      sosBroadcasting,
       refreshPendingCount,
       setOffline,
-      startPatrol,
+      bindOfficer,
+      beginPatrol,
       endPatrol,
+      signOut,
       submitCheckpointScan,
       recordViolation,
       recordIncident,
       triggerSOS,
+      cancelSOS,
       flushOfflineQueue,
     }),
     [
-      session,
       officer,
+      session,
       scannedIds,
       isOffline,
       pendingSyncCount,
+      sosBroadcasting,
       refreshPendingCount,
       setOffline,
-      startPatrol,
+      bindOfficer,
+      beginPatrol,
       endPatrol,
+      signOut,
       submitCheckpointScan,
       recordViolation,
       recordIncident,
       triggerSOS,
+      cancelSOS,
       flushOfflineQueue,
     ]
   );

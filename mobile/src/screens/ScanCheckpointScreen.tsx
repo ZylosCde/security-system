@@ -11,11 +11,11 @@ import {
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import type { RootStackParamList } from '../navigation/types';
+import type { PatrolStackParamList } from '../navigation/types';
 import { usePatrol } from '../context/PatrolContext';
 
-type Nav = NativeStackNavigationProp<RootStackParamList, 'ScanCheckpoint'>;
-type RProp = RouteProp<RootStackParamList, 'ScanCheckpoint'>;
+type Nav = NativeStackNavigationProp<PatrolStackParamList, 'ScanCheckpoint'>;
+type RProp = RouteProp<PatrolStackParamList, 'ScanCheckpoint'>;
 
 export function ScanCheckpointScreen() {
   const navigation = useNavigation<Nav>();

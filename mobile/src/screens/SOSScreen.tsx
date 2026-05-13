@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../navigation/types';
+import type { PatrolStackParamList } from '../navigation/types';
+import { FieldTheme } from '../theme/fieldTheme';
 import { usePatrol } from '../context/PatrolContext';
 
-type Nav = NativeStackNavigationProp<RootStackParamList, 'SOS'>;
+type Nav = NativeStackNavigationProp<PatrolStackParamList, 'SOS'>;
 
 export function SOSScreen() {
   const navigation = useNavigation<Nav>();
@@ -19,11 +20,7 @@ export function SOSScreen() {
       if (cancelled.current) return;
       if (count === 1) {
         triggerSOS();
-        Alert.alert(
-          'SOS active',
-          'GPS broadcast, push, and SMS would be sent to admins (integrate with your backend).',
-          [{ text: 'OK', onPress: () => navigation.goBack() }]
-        );
+        navigation.replace('SOSActive');
         setCount(0);
       } else {
         setCount(count - 1);
@@ -52,20 +49,20 @@ export function SOSScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#09090b',
+    backgroundColor: FieldTheme.bg,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 32,
   },
   title: { color: '#fecaca', fontSize: 22, fontWeight: '800', marginBottom: 8 },
-  sub: { color: '#a1a1aa', textAlign: 'center', fontSize: 15, lineHeight: 22, marginBottom: 32 },
-  count: { fontSize: 72, fontWeight: '800', color: '#ef4444', marginBottom: 40, fontVariant: ['tabular-nums'] },
+  sub: { color: FieldTheme.textMuted, textAlign: 'center', fontSize: 15, lineHeight: 22, marginBottom: 32 },
+  count: { fontSize: 72, fontWeight: '800', color: FieldTheme.danger, marginBottom: 40, fontVariant: ['tabular-nums'] },
   btn: {
     borderWidth: 1,
-    borderColor: '#3f3f46',
+    borderColor: FieldTheme.border,
     paddingHorizontal: 32,
     paddingVertical: 16,
     borderRadius: 999,
   },
-  btnText: { color: '#fafafa', fontSize: 16, fontWeight: '700' },
+  btnText: { color: FieldTheme.textOnDark, fontSize: 16, fontWeight: '700' },
 });

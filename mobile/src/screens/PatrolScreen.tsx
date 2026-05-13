@@ -11,10 +11,11 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../navigation/types';
+import type { PatrolStackParamList } from '../navigation/types';
+import { FieldTheme } from '../theme/fieldTheme';
 import { usePatrol } from '../context/PatrolContext';
 
-type Nav = NativeStackNavigationProp<RootStackParamList, 'Patrol'>;
+type Nav = NativeStackNavigationProp<PatrolStackParamList, 'PatrolHome'>;
 
 export function PatrolScreen() {
   const navigation = useNavigation<Nav>();
@@ -28,6 +29,7 @@ export function PatrolScreen() {
     setOffline,
     pendingSyncCount,
     refreshPendingCount,
+    beginPatrol,
     endPatrol,
     flushOfflineQueue,
   } = usePatrol();
@@ -36,13 +38,34 @@ export function PatrolScreen() {
     void refreshPendingCount();
   }, [refreshPendingCount]);
 
-  useEffect(() => {
-    if (!session) {
-      navigation.replace('Welcome');
-    }
-  }, [session, navigation]);
+  if (!officer) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.muted}>No officer bound. Sign in from Auth.</Text>
+      </View>
+    );
+  }
 
-  if (!session || !officer) return null;
+  if (!session) {
+    return (
+      <ScrollView contentContainerStyle={styles.scroll} style={styles.root}>
+        <Text style={styles.kicker}>FIELD PATROL</Text>
+        <Text style={styles.title}>Ready when you are</Text>
+        <Text style={styles.sub}>
+          {officer.name} · {route.name} · {route.checkpoints.length} checkpoints
+        </Text>
+        <View style={styles.heroCard}>
+          <Text style={styles.heroCardTitle}>Start patrol</Text>
+          <Text style={styles.heroCardBody}>
+            Downloads route tokens for offline checkpoints. SOS stays one tap away during the run.
+          </Text>
+          <Pressable style={styles.primary} onPress={() => beginPatrol()}>
+            <Text style={styles.primaryText}>Begin patrol</Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+    );
+  }
 
   const nextId = route.checkpoints[scannedIds.length];
   const nextCp = checkpoints.find((c) => c.id === nextId);
@@ -57,10 +80,13 @@ export function PatrolScreen() {
 
         <View style={styles.rowBar}>
           <Text style={styles.offlineLabel}>Offline mode</Text>
-          <Switch value={isOffline} onValueChange={setOffline} trackColor={{ false: '#3f3f46', true: '#14532d' }} />
+          <Switch value={isOffline} onValueChange={setOffline} trackColor={{ false: '#334155', true: '#14532d' }} />
         </View>
         {pendingSyncCount > 0 && (
-          <Pressable style={styles.syncBanner} onPress={() => void flushOfflineQueue().then((n) => Alert.alert('Synced', `${n} events uploaded (demo).`))}>
+          <Pressable
+            style={styles.syncBanner}
+            onPress={() => void flushOfflineQueue().then((n) => Alert.alert('Synced', `${n} events uploaded (demo).`))}
+          >
             <Text style={styles.syncText}>{pendingSyncCount} queued — tap to sync</Text>
           </Pressable>
         )}
@@ -108,9 +134,9 @@ export function PatrolScreen() {
         <Pressable
           style={styles.endBtn}
           onPress={() => {
-            Alert.alert('End session?', 'You will return to the home screen.', [
+            Alert.alert('End patrol?', 'Checkpoint progress will clear. You stay signed in on this device.', [
               { text: 'Cancel', style: 'cancel' },
-              { text: 'End', style: 'destructive', onPress: () => { endPatrol(); navigation.replace('Welcome'); } },
+              { text: 'End patrol', style: 'destructive', onPress: () => endPatrol() },
             ]);
           }}
         >
@@ -126,76 +152,101 @@ export function PatrolScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#09090b' },
+  root: { flex: 1, backgroundColor: FieldTheme.bg },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: FieldTheme.bg },
+  muted: { color: FieldTheme.textMuted, textAlign: 'center' },
   scroll: { padding: 20, paddingBottom: 120 },
-  meta: { color: '#52525b', fontSize: 11, letterSpacing: 1, fontWeight: '600' },
-  officer: { color: '#fafafa', fontSize: 26, fontWeight: '700', marginTop: 4 },
-  route: { color: '#a1a1aa', fontSize: 15, marginTop: 4, marginBottom: 20 },
+  kicker: { color: FieldTheme.primaryLight, fontSize: 11, fontWeight: '800', letterSpacing: 2 },
+  title: { color: FieldTheme.textOnDark, fontSize: 28, fontWeight: '800', marginTop: 8 },
+  sub: { color: FieldTheme.textMuted, fontSize: 15, marginTop: 8, lineHeight: 22 },
+  heroCard: {
+    marginTop: 28,
+    padding: 22,
+    borderRadius: 18,
+    backgroundColor: FieldTheme.bgElevated,
+    borderWidth: 1,
+    borderColor: FieldTheme.border,
+  },
+  heroCardTitle: { color: FieldTheme.textOnDark, fontSize: 20, fontWeight: '800' },
+  heroCardBody: { color: FieldTheme.textMuted, fontSize: 14, lineHeight: 21, marginTop: 8, marginBottom: 18 },
+  primary: {
+    backgroundColor: FieldTheme.primary,
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  primaryText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  meta: { color: FieldTheme.textMuted, fontSize: 11, letterSpacing: 1, fontWeight: '600' },
+  officer: { color: FieldTheme.textOnDark, fontSize: 26, fontWeight: '800', marginTop: 4 },
+  route: { color: FieldTheme.textMuted, fontSize: 15, marginTop: 4, marginBottom: 20 },
   rowBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
   },
-  offlineLabel: { color: '#d4d4d8', fontSize: 15 },
+  offlineLabel: { color: FieldTheme.textOnDark, fontSize: 15 },
   syncBanner: {
-    backgroundColor: '#422006',
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
     padding: 12,
     borderRadius: 12,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
   },
-  syncText: { color: '#fbbf24', fontSize: 13, fontWeight: '600' },
+  syncText: { color: FieldTheme.warning, fontSize: 13, fontWeight: '700' },
   progressTrack: {
     height: 6,
-    backgroundColor: '#27272a',
+    backgroundColor: FieldTheme.surface,
     borderRadius: 3,
     overflow: 'hidden',
     marginBottom: 8,
   },
-  progressFill: { height: '100%', backgroundColor: '#34d399' },
-  progressLabel: { color: '#71717a', fontSize: 12, marginBottom: 16 },
+  progressFill: { height: '100%', backgroundColor: FieldTheme.primaryLight },
+  progressLabel: { color: FieldTheme.textMuted, fontSize: 12, marginBottom: 16 },
   cpRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#27272a',
+    borderBottomColor: FieldTheme.border,
   },
   cpDone: { opacity: 0.55 },
-  cpName: { color: '#e4e4e7', fontSize: 16 },
-  cpStatus: { color: '#34d399', fontSize: 13, fontWeight: '600' },
-  cpNext: { color: '#38bdf8', fontSize: 13, fontWeight: '600' },
+  cpName: { color: FieldTheme.textOnDark, fontSize: 16 },
+  cpStatus: { color: FieldTheme.success, fontSize: 13, fontWeight: '700' },
+  cpNext: { color: FieldTheme.primaryLight, fontSize: 13, fontWeight: '700' },
   scanBtn: {
-    backgroundColor: '#fafafa',
+    backgroundColor: FieldTheme.card,
     marginTop: 24,
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: 'center',
   },
-  scanBtnText: { color: '#09090b', fontSize: 16, fontWeight: '600' },
+  scanBtnText: { color: FieldTheme.textOnCard, fontSize: 16, fontWeight: '800' },
   devToken: {
     marginTop: 10,
     fontSize: 10,
-    color: '#52525b',
+    color: FieldTheme.textMuted,
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
   },
   actions: { flexDirection: 'row', gap: 12, marginTop: 16 },
   secondary: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#3f3f46',
+    borderColor: FieldTheme.border,
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: 'center',
+    backgroundColor: FieldTheme.bgElevated,
   },
-  secondaryText: { color: '#e4e4e7', fontSize: 15, fontWeight: '600' },
+  secondaryText: { color: FieldTheme.textOnDark, fontSize: 15, fontWeight: '700' },
   endBtn: { marginTop: 24, alignItems: 'center', padding: 12 },
-  endBtnText: { color: '#71717a', fontSize: 15 },
+  endBtnText: { color: FieldTheme.textMuted, fontSize: 15 },
   sosFab: {
     position: 'absolute',
     right: 20,
-    bottom: 32,
-    backgroundColor: '#dc2626',
+    bottom: 28,
+    backgroundColor: FieldTheme.danger,
     paddingHorizontal: 28,
     paddingVertical: 18,
     borderRadius: 999,
@@ -204,5 +255,5 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
-  sosFabText: { color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: 1 },
+  sosFabText: { color: '#fff', fontSize: 16, fontWeight: '900', letterSpacing: 1 },
 });

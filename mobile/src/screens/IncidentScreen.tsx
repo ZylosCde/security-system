@@ -6,10 +6,11 @@ import {
   Pressable,
   TextInput,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../navigation/types';
+import type { PatrolStackParamList } from '../navigation/types';
 import { usePatrol } from '../context/PatrolContext';
 
 const TYPES = [
@@ -22,16 +23,20 @@ const TYPES = [
   'Other',
 ] as const;
 
-type Nav = NativeStackNavigationProp<RootStackParamList, 'Incident'>;
+type Nav = NativeStackNavigationProp<PatrolStackParamList, 'Incident'>;
 
 export function IncidentScreen() {
   const navigation = useNavigation<Nav>();
-  const { recordIncident } = usePatrol();
+  const { recordIncident, session } = usePatrol();
   const [severity, setSeverity] = useState('Medium');
   const [type, setType] = useState<string>('Suspicious Activity');
   const [description, setDescription] = useState('');
 
   const submit = () => {
+    if (!session) {
+      Alert.alert('No active patrol', 'Start a patrol from the Patrols tab before filing an incident.');
+      return;
+    }
     recordIncident({ severity, type, description: description.trim() || 'No description' });
     navigation.goBack();
   };

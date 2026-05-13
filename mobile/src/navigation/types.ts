@@ -1,13 +1,24 @@
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { NavigatorScreenParams } from '@react-navigation/native';
 
-export type RootStackParamList = {
-  Welcome: undefined;
-  OfficerSelect: undefined;
-  Patrol: undefined;
+export type PatrolStackParamList = {
+  PatrolHome: undefined;
   ScanCheckpoint: { checkpointId?: string };
   Violation: undefined;
   Incident: undefined;
   SOS: undefined;
+  SOSActive: undefined;
 };
 
-export type RootNav = NativeStackNavigationProp<RootStackParamList>;
+export type MainTabParamList = {
+  Dashboard: undefined;
+  Patrols: NavigatorScreenParams<PatrolStackParamList>;
+  Officers: undefined;
+  Devices: undefined;
+  Settings: undefined;
+};
+
+export type RootStackParamList = {
+  Auth: undefined;
+  OfficerBind: undefined;
+  Main: NavigatorScreenParams<MainTabParamList> | undefined;
+};

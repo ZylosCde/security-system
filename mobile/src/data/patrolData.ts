@@ -40,3 +40,10 @@ export const DEFAULT_ROUTE: Route = {
 };
 
 export const DEVICE_ID = 'D-MOBILE-001';
+
+/** Mock peers for dashboard “active sessions” (field command view) */
+export const MOCK_FIELD_SESSIONS = [
+  { id: 'FS-1', officerName: 'Sarah Chen', area: 'West Wing Perimeter', progress: 0.45 },
+  { id: 'FS-2', officerName: 'Marcus Thorne', area: 'Main Lobby & Parking', progress: 0.1 },
+  { id: 'FS-3', officerName: 'Elena Rodriguez', area: 'Loading Bay Route', progress: 0.8 },
+];
