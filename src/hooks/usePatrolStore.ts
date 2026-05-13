@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useState, ReactNode } from 'react';
 import { PatrolSession, Violation, SOSEvent, Incident, Officer, Device, Checkpoint, Route, Schedule } from '@/lib/types';
 import { activeSessions as initialSessions, violations as initialViolations, sosEvents as initialSOS, incidents as initialIncidents, officers as initialOfficers, devices as initialDevices, checkpoints as initialCheckpoints, routes as initialRoutes, schedules as initialSchedules } from '@/lib/mockData';
 
@@ -22,6 +22,8 @@ interface PatrolStore {
   addIncident: (inc: Incident) => void;
   addSession: (session: PatrolSession) => void;
   updateOfficerStatus: (id: string, status: Officer['status']) => void;
+  /** Demo-only: randomly advance one in-progress patrol checkpoint */
+  simulateRandomPatrolTick: () => void;
 }
 
 const PatrolContext = createContext<PatrolStore | null>(null);
@@ -56,9 +58,26 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
     setOfficers(prev => prev.map(o => o.id === id ? { ...o, status } : o));
   };
 
+  const simulateRandomPatrolTick = useCallback(() => {
+    setSessions((prev) =>
+      prev.map((s) => {
+        if (s.status !== 'in-progress' || s.checkpointsCompleted >= s.totalCheckpoints) return s;
+        if (Math.random() <= 0.6) return s;
+        const next = s.checkpointsCompleted + 1;
+        const completed = next >= s.totalCheckpoints;
+        return {
+          ...s,
+          checkpointsCompleted: next,
+          status: completed ? 'completed' : s.status,
+        };
+      })
+    );
+  }, []);
+
   const value: PatrolStore = {
     sessions, violations, sosEvents, incidents, officers, devices, checkpoints, routes, schedules,
     updateSession, addViolation, resolveViolation, addSOSEvent, resolveSOS, addIncident, addSession, updateOfficerStatus,
+    simulateRandomPatrolTick,
   };
 
   return React.createElement(PatrolContext.Provider, { value }, children);

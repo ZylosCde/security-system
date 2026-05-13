@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { PatrolProvider } from "@/hooks/usePatrolStore";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,15 +32,16 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col bg-zinc-950 text-zinc-100">
-        <TooltipProvider>
-          <PatrolProvider>
-            {children}
-          </PatrolProvider>
-          <Toaster position="top-center" richColors closeButton />
-        </TooltipProvider>
+      <body className="min-h-dvh flex flex-col bg-background text-foreground">
+        <ThemeProvider>
+          <TooltipProvider>
+            <PatrolProvider>{children}</PatrolProvider>
+            <Toaster position="top-center" richColors closeButton />
+          </TooltipProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

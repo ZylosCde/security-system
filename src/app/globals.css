@@ -139,13 +139,17 @@
 }
 
 .card-premium {
-  @apply bg-zinc-900/80 border border-white/10 backdrop-blur-xl rounded-2xl shadow-2xl;
+  @apply bg-card/90 border border-border backdrop-blur-xl rounded-2xl shadow-lg dark:shadow-2xl;
   transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.2s;
 }
 
 .card-premium:hover {
   transform: translateY(-1px);
-  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  box-shadow: 0 12px 24px -8px rgb(0 0 0 / 0.12);
+}
+
+.dark .card-premium:hover {
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.25), 0 8px 10px -6px rgb(0 0 0 / 0.2);
 }
 
 .status-dot {
@@ -158,24 +162,24 @@
 .status-offline { background-color: #71717a; }
 
 .patrol-progress {
-  @apply h-1.5 bg-zinc-800 rounded-full overflow-hidden;
+  @apply h-1.5 rounded-full overflow-hidden bg-muted;
 }
 
 .patrol-progress-bar {
-  @apply h-full bg-emerald-500 transition-all duration-500 ease-out;
-  background: linear-gradient(90deg, #10b981, #34d399);
+  @apply h-full rounded-full transition-all duration-500 ease-out;
+  background: linear-gradient(90deg, oklch(0.55 0.15 155), oklch(0.68 0.14 155));
 }
 
 .map-container {
-  @apply relative bg-zinc-950 rounded-2xl overflow-hidden border border-white/10;
+  @apply relative rounded-2xl overflow-hidden border border-border bg-muted/40;
   background-image: 
-    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    linear-gradient(color-mix(in oklch, var(--foreground) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklch, var(--foreground) 6%, transparent) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
 .officer-marker {
-  @apply absolute w-4 h-4 rounded-full border-2 border-white shadow-lg z-10;
+  @apply absolute z-10 h-4 w-4 rounded-full border-2 border-background shadow-lg;
   transition: all 0.4s cubic-bezier(0.23, 1.0, 0.32, 1);
 }
 
@@ -184,7 +188,7 @@
 }
 
 .sos-alert {
-  @apply bg-red-950/90 border-red-500/50 text-red-100 animate-pulse;
+  @apply animate-pulse rounded-2xl border border-red-500/35 bg-red-500/10 text-foreground dark:border-red-500/50 dark:bg-red-950/90 dark:text-red-100;
 }
 
 .table-row-hover {
@@ -192,16 +196,16 @@
 }
 
 .table-row-hover:hover {
-  background-color: rgba(255, 255, 255, 0.025);
+  background-color: color-mix(in oklch, var(--foreground) 4%, transparent);
 }
 
 .nav-active {
-  @apply bg-white/10 text-white border-l-2 border-indigo-500;
+  @apply border-l-2 border-primary bg-sidebar-accent text-sidebar-foreground font-medium;
 }
 
 .qr-simulator {
-  @apply bg-zinc-950 border border-white/10 rounded-3xl p-8 flex flex-col items-center;
-  box-shadow: inset 0 0 60px rgba(0,0,0,0.6);
+  @apply rounded-3xl border border-border bg-card p-8 flex flex-col items-center;
+  box-shadow: inset 0 0 40px color-mix(in oklch, var(--foreground) 6%, transparent);
 }
 
 .glass {

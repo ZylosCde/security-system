@@ -173,29 +173,35 @@ export function DeviceSimulator({ onClose }: DeviceSimulatorProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-6" onClick={onClose}>
-      <div className="w-full max-w-[380px] bg-zinc-950 border border-white/10 rounded-3xl p-6" onClick={e => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-md dark:bg-black/90"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-[380px] rounded-3xl border border-border bg-card p-6 text-card-foreground shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2 text-xs font-mono tracking-[2px] text-white/60">
+          <div className="flex items-center gap-2 text-xs font-mono tracking-[2px] text-muted-foreground">
             <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" /> RUGGEDPAD X7
           </div>
-          <button onClick={onClose} className="text-white/40 hover:text-white"><X size={18} /></button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X size={18} /></button>
         </div>
 
         <AnimatePresence mode="wait">
           {step === 'idle' && (
             <div>
               <div className="text-center mb-8">
-                <QrCode className="mx-auto w-10 h-10 text-white/60 mb-3" />
+                <QrCode className="mx-auto w-10 h-10 text-muted-foreground mb-3" />
                 <div className="text-2xl font-semibold tracking-tight">Scan Officer NFC</div>
-                <div className="text-sm text-white/50 mt-1">Non-linked • Session-bound</div>
+                <div className="text-sm text-muted-foreground mt-1">Non-linked • Session-bound</div>
               </div>
               <div className="space-y-2">
                 {storeOfficers.filter(o => o.status !== 'off-duty').map(o => (
-                  <button key={o.id} onClick={() => startPatrol(o.id)} className="w-full flex justify-between border border-white/10 hover:bg-white/5 px-5 py-4 rounded-2xl text-left text-sm">
+                  <button key={o.id} onClick={() => startPatrol(o.id)} className="w-full flex justify-between border border-border hover:bg-muted/80 px-5 py-4 rounded-2xl text-left text-sm">
                     <div>
                       <div className="font-medium">{o.name}</div>
-                      <div className="font-mono text-xs text-white/40">{o.nic}</div>
+                      <div className="font-mono text-xs text-muted-foreground">{o.nic}</div>
                     </div>
                     <div className="text-emerald-400 text-xs self-center px-2 py-0.5 rounded bg-emerald-500/10">ON DUTY</div>
                   </button>
@@ -211,25 +217,25 @@ export function DeviceSimulator({ onClose }: DeviceSimulatorProps) {
                   <div className="font-mono text-[10px] text-emerald-400 tracking-widest">ACTIVE PATROL</div>
                   <div className="text-xl font-semibold tracking-[-0.5px]">{currentOfficer.name}</div>
                 </div>
-                <div className="text-right text-xs font-mono text-white/50">
+                <div className="text-right text-xs font-mono text-muted-foreground">
                   {currentRoute.name}<br />{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
               </div>
 
               <div className="flex gap-2 mb-5 text-xs">
-                <div className="flex-1 bg-zinc-900 border border-white/10 rounded-2xl px-4 py-2.5 flex items-center gap-2">
+                <div className="flex-1 bg-muted border border-border rounded-2xl px-4 py-2.5 flex items-center gap-2">
                   {isOffline ? <WifiOff className="text-amber-400" size={14} /> : <Wifi className="text-emerald-400" size={14} />}
                   {isOffline ? 'OFFLINE — QUEUED' : 'LIVE SYNCED'}
                 </div>
-                <Button size="sm" variant="outline" onClick={() => setIsOffline(!isOffline)} className="rounded-2xl border-white/20">Toggle</Button>
+                <Button size="sm" variant="outline" onClick={() => setIsOffline(!isOffline)} className="rounded-2xl border-border">Toggle</Button>
               </div>
 
               <div className="mb-5">
-                <div className="uppercase text-[10px] tracking-[1.5px] text-white/40 mb-2 px-1">CHECKPOINTS</div>
+                <div className="uppercase text-[10px] tracking-[1.5px] text-muted-foreground mb-2 px-1">CHECKPOINTS</div>
                 {activeCheckpoints.map((cp) => {
                   const done = scanned.includes(cp.id);
                   return (
-                    <button key={cp.id} disabled={done} onClick={() => scanCheckpoint(cp.id)} className={`w-full flex items-center justify-between text-sm border rounded-2xl px-5 py-[15px] mb-1.5 ${done ? 'border-emerald-500/30 bg-emerald-950/20 text-emerald-400' : 'border-white/10 hover:bg-white/5'}`}>
+                    <button key={cp.id} disabled={done} onClick={() => scanCheckpoint(cp.id)} className={`w-full flex items-center justify-between text-sm border rounded-2xl px-5 py-[15px] mb-1.5 ${done ? 'border-emerald-500/30 bg-emerald-950/20 text-emerald-400' : 'border-border hover:bg-muted/80'}`}>
                       <div className="flex items-center gap-3"><MapPin size={15} />{cp.name}</div>
                       {done && <div className="font-mono text-[10px]">VERIFIED</div>}
                     </button>
@@ -239,7 +245,7 @@ export function DeviceSimulator({ onClose }: DeviceSimulatorProps) {
 
               <div className="grid grid-cols-3 gap-2">
                 <Button onClick={() => setStep('violation')} variant="outline" className="h-12 rounded-2xl border-amber-500/30 text-amber-400 text-xs">VIOLATION</Button>
-                <Button onClick={() => setStep('incident')} variant="outline" className="h-12 rounded-2xl border-white/20 text-xs"><Camera className="w-3.5 h-3.5 mr-1" /> INCIDENT</Button>
+                <Button onClick={() => setStep('incident')} variant="outline" className="h-12 rounded-2xl border-border text-xs"><Camera className="w-3.5 h-3.5 mr-1" /> INCIDENT</Button>
                 <Button onClick={triggerSOS} variant="destructive" className="h-12 rounded-2xl text-xs">SOS</Button>
               </div>
             </div>
@@ -248,9 +254,9 @@ export function DeviceSimulator({ onClose }: DeviceSimulatorProps) {
           {step === 'violation' && (
             <div>
               <div className="font-semibold text-xl tracking-tight mb-1">Report Violation</div>
-              <div className="text-sm text-white/50 mb-6">Select reason. Timestamp + GPS attached.</div>
+              <div className="text-sm text-muted-foreground mb-6">Select reason. Timestamp + GPS attached.</div>
               {['Emergency on premises', 'Equipment failure', 'Supervisor instruction', 'Medical', 'Other (text required)'].map(r => (
-                <button key={r} onClick={() => reportViolation(r)} className="w-full text-left border border-white/10 hover:bg-white/5 px-5 py-[15px] rounded-2xl mb-2 text-sm">{r}</button>
+                <button key={r} onClick={() => reportViolation(r)} className="w-full text-left border border-border hover:bg-muted/80 px-5 py-[15px] rounded-2xl mb-2 text-sm">{r}</button>
               ))}
               <Button variant="ghost" onClick={() => setStep('patrol')} className="w-full mt-2">Cancel</Button>
             </div>
@@ -259,10 +265,10 @@ export function DeviceSimulator({ onClose }: DeviceSimulatorProps) {
           {step === 'incident' && (
             <div>
               <div className="font-semibold text-xl mb-4">Log Incident</div>
-              <select value={incidentForm.type} onChange={e => setIncidentForm({ ...incidentForm, type: e.target.value })} className="w-full bg-zinc-900 border border-white/10 rounded-2xl px-4 py-3 text-sm mb-3">
+              <select value={incidentForm.type} onChange={e => setIncidentForm({ ...incidentForm, type: e.target.value })} className="w-full bg-muted border border-border rounded-2xl px-4 py-3 text-sm mb-3">
                 {['Trespasser','Theft','Fire','Injury','Suspicious Activity','Equipment Failure','Other'].map(t => <option key={t}>{t}</option>)}
               </select>
-              <textarea value={incidentForm.description} onChange={e => setIncidentForm({ ...incidentForm, description: e.target.value })} placeholder="Description..." className="w-full h-24 bg-zinc-900 border border-white/10 rounded-2xl p-4 text-sm mb-3" />
+              <textarea value={incidentForm.description} onChange={e => setIncidentForm({ ...incidentForm, description: e.target.value })} placeholder="Description..." className="w-full h-24 bg-muted border border-border rounded-2xl p-4 text-sm mb-3" />
               <div className="flex gap-2">
                 <Button onClick={reportIncident} className="flex-1 h-12 rounded-2xl">SUBMIT REPORT</Button>
                 <Button variant="outline" onClick={() => setStep('patrol')} className="flex-1 h-12 rounded-2xl">Cancel</Button>
@@ -280,7 +286,7 @@ export function DeviceSimulator({ onClose }: DeviceSimulatorProps) {
           )}
         </AnimatePresence>
 
-        <div className="text-center text-[10px] text-white/30 mt-8 tracking-[1px] font-mono">OFFLINE-FIRST • ROTATING HMAC QR • SESSION LOGGED</div>
+        <div className="text-center text-[10px] text-muted-foreground/80 mt-8 tracking-[1px] font-mono">OFFLINE-FIRST • ROTATING HMAC QR • SESSION LOGGED</div>
       </div>
     </div>
   );
