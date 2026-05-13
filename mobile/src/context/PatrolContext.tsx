@@ -2,15 +2,19 @@ import React, {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Officer, PatrolSession, Route, Checkpoint } from '../types';
 import { CHECKPOINTS, DEFAULT_ROUTE, DEVICE_ID, OFFICERS } from '../data/patrolData';
 import { validateQRToken } from '../lib/qrService';
 import { generateScanEvent, validateCheckpointScan } from '../lib/routeEngine';
 import { getQueueLength, queueEvent, syncQueue } from '../lib/offlineQueue';
+
+const STORAGE_BOUND_OFFICER = 'aegis_bound_officer_id';
 
 type PatrolContextValue = {
   officers: Officer[];
@@ -38,6 +42,8 @@ type PatrolContextValue = {
   triggerSOS: () => void;
   cancelSOS: () => void;
   flushOfflineQueue: () => Promise<number>;
+  /** AsyncStorage rehydration finished (safe for splash → main) */
+  hydrated: boolean;
 };
 
 const PatrolContext = createContext<PatrolContextValue | null>(null);
@@ -49,6 +55,22 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
   const [isOffline, setIsOffline] = useState(false);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [sosBroadcasting, setSosBroadcasting] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const id = await AsyncStorage.getItem(STORAGE_BOUND_OFFICER);
+        if (id) {
+          const o = OFFICERS.find((x) => x.id === id && x.status !== 'off-duty');
+          if (o) setOfficer(o);
+          else await AsyncStorage.removeItem(STORAGE_BOUND_OFFICER);
+        }
+      } finally {
+        setHydrated(true);
+      }
+    })();
+  }, []);
 
   const refreshPendingCount = useCallback(async () => {
     setPendingSyncCount(await getQueueLength());
@@ -62,6 +84,7 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
     const o = OFFICERS.find((x) => x.id === officerId && x.status !== 'off-duty');
     if (!o) return false;
     setOfficer(o);
+    void AsyncStorage.setItem(STORAGE_BOUND_OFFICER, officerId);
     return true;
   }, []);
 
@@ -92,6 +115,7 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setScannedIds([]);
     setSosBroadcasting(false);
+    void AsyncStorage.removeItem(STORAGE_BOUND_OFFICER);
   }, []);
 
   const submitCheckpointScan = useCallback(
@@ -239,6 +263,7 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
       triggerSOS,
       cancelSOS,
       flushOfflineQueue,
+      hydrated,
     }),
     [
       officer,
@@ -259,6 +284,7 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
       triggerSOS,
       cancelSOS,
       flushOfflineQueue,
+      hydrated,
     ]
   );
 

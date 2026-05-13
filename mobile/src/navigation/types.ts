@@ -18,7 +18,9 @@ export type MainTabParamList = {
 };
 
 export type RootStackParamList = {
+  Splash: undefined;
   Auth: undefined;
   OfficerBind: undefined;
   Main: NavigatorScreenParams<MainTabParamList> | undefined;
+  Profile: undefined;
 };

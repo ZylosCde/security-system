@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import type { PatrolStackParamList } from '../navigation/types';
+import type { ThemeColors } from '../theme/colors';
+import { useAppTheme } from '../context/ThemeContext';
 import { usePatrol } from '../context/PatrolContext';
 
 type Nav = NativeStackNavigationProp<PatrolStackParamList, 'ScanCheckpoint'>;
@@ -20,6 +22,8 @@ type RProp = RouteProp<PatrolStackParamList, 'ScanCheckpoint'>;
 export function ScanCheckpointScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<RProp>();
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { submitCheckpointScan, checkpoints } = usePatrol();
   const [permission, requestPermission] = useCameraPermissions();
   const [manual, setManual] = useState('');
@@ -82,7 +86,7 @@ export function ScanCheckpointScreen() {
             <TextInput
               style={styles.input}
               placeholder="C-01:VISTA Towers:…"
-              placeholderTextColor="#52525b"
+              placeholderTextColor={colors.textMuted}
               value={manual}
               onChangeText={setManual}
               autoCapitalize="none"
@@ -115,7 +119,7 @@ export function ScanCheckpointScreen() {
         <TextInput
           style={styles.input}
           placeholder="Paste full QR payload"
-          placeholderTextColor="#52525b"
+          placeholderTextColor={colors.textMuted}
           value={manual}
           onChangeText={setManual}
           autoCapitalize="none"
@@ -131,47 +135,50 @@ export function ScanCheckpointScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#09090b', padding: 16 },
-  center: { flex: 1, backgroundColor: '#09090b', padding: 24, justifyContent: 'center' },
-  hint: { color: '#a1a1aa', marginBottom: 12, fontSize: 15 },
-  cameraWrap: {
-    flex: 1,
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#27272a',
-  },
-  camera: { flex: 1, minHeight: 280 },
-  manualBox: { marginTop: 16 },
-  manualLabel: { color: '#71717a', fontSize: 12, marginBottom: 8 },
-  input: {
-    backgroundColor: '#18181b',
-    borderWidth: 1,
-    borderColor: '#27272a',
-    borderRadius: 12,
-    padding: 14,
-    color: '#fafafa',
-    fontSize: 14,
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
-  },
-  primary: {
-    backgroundColor: '#fafafa',
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  primaryText: { color: '#09090b', fontWeight: '700' },
-  secondary: {
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: '#3f3f46',
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  secondaryText: { color: '#e4e4e7', fontWeight: '600' },
-  info: { color: '#a1a1aa', fontSize: 15, textAlign: 'center', lineHeight: 22 },
-  webNote: { color: '#52525b', fontSize: 12, marginTop: 8, textAlign: 'center' },
-});
+function createStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    root: { flex: 1, backgroundColor: c.bg, padding: 16 },
+    center: { flex: 1, backgroundColor: c.bg, padding: 24, justifyContent: 'center' },
+    hint: { color: c.textMuted, marginBottom: 12, fontSize: 15 },
+    cameraWrap: {
+      flex: 1,
+      borderRadius: 16,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    camera: { flex: 1, minHeight: 280 },
+    manualBox: { marginTop: 16 },
+    manualLabel: { color: c.textMuted, fontSize: 12, marginBottom: 8 },
+    input: {
+      backgroundColor: c.bgElevated,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 12,
+      padding: 14,
+      color: c.textOnDark,
+      fontSize: 14,
+      fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    },
+    primary: {
+      backgroundColor: c.card,
+      paddingVertical: 14,
+      borderRadius: 14,
+      alignItems: 'center',
+      marginTop: 16,
+    },
+    primaryText: { color: c.textOnCard, fontWeight: '700' },
+    secondary: {
+      marginTop: 10,
+      borderWidth: 1,
+      borderColor: c.border,
+      paddingVertical: 12,
+      borderRadius: 12,
+      alignItems: 'center',
+      backgroundColor: c.bgElevated,
+    },
+    secondaryText: { color: c.textOnDark, fontWeight: '600' },
+    info: { color: c.textMuted, fontSize: 15, textAlign: 'center', lineHeight: 22 },
+    webNote: { color: c.textMuted, fontSize: 12, marginTop: 8, textAlign: 'center', opacity: 0.85 },
+  });
+}

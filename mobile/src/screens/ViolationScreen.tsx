@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Text, StyleSheet, Pressable, ScrollView, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { PatrolStackParamList } from '../navigation/types';
+import type { ThemeColors } from '../theme/colors';
+import { useAppTheme } from '../context/ThemeContext';
 import { usePatrol } from '../context/PatrolContext';
 
 const REASONS = [
@@ -17,6 +19,8 @@ type Nav = NativeStackNavigationProp<PatrolStackParamList, 'Violation'>;
 
 export function ViolationScreen() {
   const navigation = useNavigation<Nav>();
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { recordViolation, session } = usePatrol();
 
   return (
@@ -45,18 +49,20 @@ export function ViolationScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { padding: 20, paddingBottom: 40, backgroundColor: '#09090b' },
-  sub: { color: '#71717a', fontSize: 14, marginBottom: 20 },
-  row: {
-    borderWidth: 1,
-    borderColor: '#27272a',
-    backgroundColor: '#18181b',
-    padding: 18,
-    borderRadius: 14,
-    marginBottom: 10,
-  },
-  rowText: { color: '#fafafa', fontSize: 16 },
-  cancel: { marginTop: 16, alignItems: 'center', padding: 12 },
-  cancelText: { color: '#71717a', fontSize: 16 },
-});
+function createStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    root: { padding: 20, paddingBottom: 40, backgroundColor: c.bg },
+    sub: { color: c.textMuted, fontSize: 14, marginBottom: 20 },
+    row: {
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.bgElevated,
+      padding: 18,
+      borderRadius: 14,
+      marginBottom: 10,
+    },
+    rowText: { color: c.textOnDark, fontSize: 16 },
+    cancel: { marginTop: 16, alignItems: 'center', padding: 12 },
+    cancelText: { color: c.textMuted, fontSize: 16 },
+  });
+}

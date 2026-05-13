@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList } from 'react-native';
-import { FieldTheme } from '../theme/fieldTheme';
+import type { ThemeColors } from '../theme/colors';
+import { useAppTheme } from '../context/ThemeContext';
 import { usePatrol } from '../context/PatrolContext';
 
 export function OfficersTabScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { officers } = usePatrol();
 
   return (
@@ -41,39 +44,41 @@ export function OfficersTabScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: FieldTheme.bg, padding: 20 },
-  title: { color: FieldTheme.textOnDark, fontSize: 24, fontWeight: '800' },
-  sub: { color: FieldTheme.textMuted, marginTop: 6, marginBottom: 16 },
-  list: { gap: 10, paddingBottom: 24 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: FieldTheme.bgElevated,
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: FieldTheme.border,
-    gap: 12,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: FieldTheme.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  initials: { color: FieldTheme.primaryLight, fontWeight: '800', fontSize: 14 },
-  name: { color: FieldTheme.textOnDark, fontSize: 16, fontWeight: '700' },
-  nic: { color: FieldTheme.textMuted, fontSize: 12, marginTop: 2 },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: FieldTheme.surface,
-  },
-  badgeOn: { backgroundColor: 'rgba(16,185,129,0.15)' },
-  badgeTxt: { color: FieldTheme.textMuted, fontSize: 11, fontWeight: '700', textTransform: 'capitalize' },
-  badgeTxtOn: { color: FieldTheme.success },
-});
+function createStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    root: { flex: 1, backgroundColor: c.bg, padding: 20 },
+    title: { color: c.textOnDark, fontSize: 24, fontWeight: '800' },
+    sub: { color: c.textMuted, marginTop: 6, marginBottom: 16 },
+    list: { gap: 10, paddingBottom: 24 },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.bgElevated,
+      borderRadius: 14,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: c.border,
+      gap: 12,
+    },
+    avatar: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: c.primarySoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    initials: { color: c.primaryLight, fontWeight: '800', fontSize: 14 },
+    name: { color: c.textOnDark, fontSize: 16, fontWeight: '700' },
+    nic: { color: c.textMuted, fontSize: 12, marginTop: 2 },
+    badge: {
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 999,
+      backgroundColor: c.surface,
+    },
+    badgeOn: { backgroundColor: 'rgba(16,185,129,0.15)' },
+    badgeTxt: { color: c.textMuted, fontSize: 11, fontWeight: '700', textTransform: 'capitalize' },
+    badgeTxtOn: { color: c.success },
+  });
+}

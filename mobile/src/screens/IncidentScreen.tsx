@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { PatrolStackParamList } from '../navigation/types';
+import type { ThemeColors } from '../theme/colors';
+import { useAppTheme } from '../context/ThemeContext';
 import { usePatrol } from '../context/PatrolContext';
 
 const TYPES = [
@@ -27,6 +29,8 @@ type Nav = NativeStackNavigationProp<PatrolStackParamList, 'Incident'>;
 
 export function IncidentScreen() {
   const navigation = useNavigation<Nav>();
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { recordIncident, session } = usePatrol();
   const [severity, setSeverity] = useState('Medium');
   const [type, setType] = useState<string>('Suspicious Activity');
@@ -68,7 +72,7 @@ export function IncidentScreen() {
         style={styles.area}
         multiline
         placeholder="What happened?"
-        placeholderTextColor="#52525b"
+        placeholderTextColor={colors.textMuted}
         value={description}
         onChangeText={setDescription}
       />
@@ -83,48 +87,51 @@ export function IncidentScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { padding: 20, backgroundColor: '#09090b', paddingBottom: 40 },
-  label: { color: '#71717a', fontSize: 12, letterSpacing: 1, marginTop: 16, marginBottom: 10 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#3f3f46',
-  },
-  chipOn: { borderColor: '#34d399', backgroundColor: 'rgba(52, 211, 153, 0.12)' },
-  chipText: { color: '#a1a1aa', fontWeight: '600' },
-  chipTextOn: { color: '#34d399' },
-  typeRow: {
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#27272a',
-    marginBottom: 8,
-  },
-  typeRowOn: { borderColor: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.08)' },
-  typeText: { color: '#e4e4e7', fontSize: 15 },
-  area: {
-    minHeight: 100,
-    backgroundColor: '#18181b',
-    borderWidth: 1,
-    borderColor: '#27272a',
-    borderRadius: 12,
-    padding: 14,
-    color: '#fafafa',
-    fontSize: 15,
-    textAlignVertical: 'top',
-  },
-  primary: {
-    marginTop: 24,
-    backgroundColor: '#fafafa',
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: 'center',
-  },
-  primaryText: { color: '#09090b', fontWeight: '700', fontSize: 16 },
-  cancel: { marginTop: 12, alignItems: 'center', padding: 12 },
-  cancelText: { color: '#71717a', fontSize: 16 },
-});
+function createStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    root: { padding: 20, backgroundColor: c.bg, paddingBottom: 40 },
+    label: { color: c.textMuted, fontSize: 12, letterSpacing: 1, marginTop: 16, marginBottom: 10 },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    chipOn: { borderColor: c.success, backgroundColor: 'rgba(16, 185, 129, 0.12)' },
+    chipText: { color: c.textMuted, fontWeight: '600' },
+    chipTextOn: { color: c.success },
+    typeRow: {
+      padding: 14,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: c.border,
+      marginBottom: 8,
+      backgroundColor: c.bgElevated,
+    },
+    typeRowOn: { borderColor: c.primaryLight, backgroundColor: c.primarySoft },
+    typeText: { color: c.textOnDark, fontSize: 15 },
+    area: {
+      minHeight: 100,
+      backgroundColor: c.bgElevated,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 12,
+      padding: 14,
+      color: c.textOnDark,
+      fontSize: 15,
+      textAlignVertical: 'top',
+    },
+    primary: {
+      marginTop: 24,
+      backgroundColor: c.card,
+      paddingVertical: 16,
+      borderRadius: 14,
+      alignItems: 'center',
+    },
+    primaryText: { color: c.textOnCard, fontWeight: '700', fontSize: 16 },
+    cancel: { marginTop: 12, alignItems: 'center', padding: 12 },
+    cancelText: { color: c.textMuted, fontSize: 16 },
+  });
+}

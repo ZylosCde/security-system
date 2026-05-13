@@ -32,7 +32,8 @@
         {
           "cameraPermission": "Allow AEGIS Patrol to scan checkpoint QR codes."
         }
-      ]
+      ],
+      "expo-localization"
     ]
   }
 }

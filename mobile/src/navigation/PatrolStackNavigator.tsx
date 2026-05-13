@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { PatrolStackParamList } from './types';
 import { PatrolScreen } from '../screens/PatrolScreen';
@@ -7,18 +7,22 @@ import { ViolationScreen } from '../screens/ViolationScreen';
 import { IncidentScreen } from '../screens/IncidentScreen';
 import { SOSScreen } from '../screens/SOSScreen';
 import { SOSActiveScreen } from '../screens/SOSActiveScreen';
-import { FieldTheme } from '../theme/fieldTheme';
+import { useAppTheme } from '../context/ThemeContext';
 
 const Stack = createNativeStackNavigator<PatrolStackParamList>();
 
-const stackScreenOptions = {
-  headerStyle: { backgroundColor: FieldTheme.bg },
-  headerTintColor: FieldTheme.textOnDark,
-  headerTitleStyle: { fontWeight: '600' as const, fontSize: 17 },
-  contentStyle: { backgroundColor: FieldTheme.bg },
-};
-
 export function PatrolStackNavigator() {
+  const { colors } = useAppTheme();
+  const stackScreenOptions = useMemo(
+    () => ({
+      headerStyle: { backgroundColor: colors.bg },
+      headerTintColor: colors.textOnDark,
+      headerTitleStyle: { fontWeight: '600' as const, fontSize: 17 },
+      contentStyle: { backgroundColor: colors.bg },
+    }),
+    [colors]
+  );
+
   return (
     <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen name="PatrolHome" component={PatrolScreen} options={{ title: 'Patrol' }} />
@@ -30,7 +34,11 @@ export function PatrolStackNavigator() {
       <Stack.Screen name="Violation" component={ViolationScreen} options={{ title: 'Violation' }} />
       <Stack.Screen name="Incident" component={IncidentScreen} options={{ title: 'Report incident' }} />
       <Stack.Screen name="SOS" component={SOSScreen} options={{ presentation: 'fullScreenModal', headerShown: false }} />
-      <Stack.Screen name="SOSActive" component={SOSActiveScreen} options={{ presentation: 'fullScreenModal', headerShown: false }} />
+      <Stack.Screen
+        name="SOSActive"
+        component={SOSActiveScreen}
+        options={{ presentation: 'fullScreenModal', headerShown: false }}
+      />
     </Stack.Navigator>
   );
 }

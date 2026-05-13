@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,11 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-import { FieldTheme } from '../theme/fieldTheme';
+import type { ThemeColors } from '../theme/colors';
+import { useAppTheme } from '../context/ThemeContext';
 import { usePatrol } from '../context/PatrolContext';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'OfficerBind'>;
@@ -20,14 +21,30 @@ type Nav = NativeStackNavigationProp<RootStackParamList, 'OfficerBind'>;
 export function OfficerBindScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { officers, bindOfficer } = usePatrol();
   const [nicQuery, setNicQuery] = useState('');
 
   const onDuty = officers.filter((o) => o.status !== 'off-duty');
 
+  const goMainDashboard = () => {
+    navigation.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [
+          {
+            name: 'Main',
+            state: { routes: [{ name: 'Dashboard' }], index: 0 },
+          },
+        ],
+      })
+    );
+  };
+
   const tryBind = (id: string) => {
     if (bindOfficer(id)) {
-      navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+      goMainDashboard();
     } else {
       Alert.alert('Unavailable', 'Officer cannot be bound while off duty.');
     }
@@ -70,7 +87,7 @@ export function OfficerBindScreen() {
       <TextInput
         style={styles.input}
         placeholder="NIC or officer ID"
-        placeholderTextColor={FieldTheme.textMuted}
+        placeholderTextColor={colors.textMuted}
         value={nicQuery}
         onChangeText={setNicQuery}
         autoCapitalize="none"
@@ -86,48 +103,50 @@ export function OfficerBindScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: FieldTheme.bg, paddingHorizontal: 20 },
-  title: { color: FieldTheme.textOnDark, fontSize: 24, fontWeight: '800' },
-  sub: { color: FieldTheme.textMuted, marginTop: 6, marginBottom: 20 },
-  section: {
-    color: FieldTheme.textMuted,
-    fontSize: 11,
-    letterSpacing: 1.2,
-    fontWeight: '700',
-    marginBottom: 10,
-  },
-  list: { gap: 10, paddingBottom: 16 },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 14,
-    backgroundColor: FieldTheme.bgElevated,
-    borderWidth: 1,
-    borderColor: FieldTheme.border,
-  },
-  name: { color: FieldTheme.textOnDark, fontSize: 17, fontWeight: '700' },
-  nic: { color: FieldTheme.textMuted, fontSize: 13, marginTop: 4 },
-  chev: { color: FieldTheme.primaryLight, fontSize: 22, fontWeight: '300' },
-  input: {
-    backgroundColor: FieldTheme.bgElevated,
-    borderWidth: 1,
-    borderColor: FieldTheme.border,
-    borderRadius: 12,
-    padding: 14,
-    color: FieldTheme.textOnDark,
-    fontSize: 16,
-  },
-  primary: {
-    backgroundColor: FieldTheme.primary,
-    marginTop: 12,
-    paddingVertical: 15,
-    borderRadius: 14,
-    alignItems: 'center',
-  },
-  primaryText: { color: '#fff', fontWeight: '800', fontSize: 16 },
-  back: { marginTop: 20, alignItems: 'center', padding: 12 },
-  backText: { color: FieldTheme.textMuted, fontSize: 16 },
-});
+function createStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    root: { flex: 1, backgroundColor: c.bg, paddingHorizontal: 20 },
+    title: { color: c.textOnDark, fontSize: 24, fontWeight: '800' },
+    sub: { color: c.textMuted, marginTop: 6, marginBottom: 20 },
+    section: {
+      color: c.textMuted,
+      fontSize: 11,
+      letterSpacing: 1.2,
+      fontWeight: '700',
+      marginBottom: 10,
+    },
+    list: { gap: 10, paddingBottom: 16 },
+    row: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 16,
+      borderRadius: 14,
+      backgroundColor: c.bgElevated,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    name: { color: c.textOnDark, fontSize: 17, fontWeight: '700' },
+    nic: { color: c.textMuted, fontSize: 13, marginTop: 4 },
+    chev: { color: c.primaryLight, fontSize: 22, fontWeight: '300' },
+    input: {
+      backgroundColor: c.bgElevated,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 12,
+      padding: 14,
+      color: c.textOnDark,
+      fontSize: 16,
+    },
+    primary: {
+      backgroundColor: c.primary,
+      marginTop: 12,
+      paddingVertical: 15,
+      borderRadius: 14,
+      alignItems: 'center',
+    },
+    primaryText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+    back: { marginTop: 20, alignItems: 'center', padding: 12 },
+    backText: { color: c.textMuted, fontSize: 16 },
+  });
+}
