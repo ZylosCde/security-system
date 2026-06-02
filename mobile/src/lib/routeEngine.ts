@@ -11,8 +11,9 @@ const EXPECTED_TRANSIT_BUFFER_MIN = 5;
 export function validateCheckpointScan(
   session: PatrolSession,
   route: Route,
-  checkpoints: Checkpoint[],
-  scan: { checkpointId: string; timestamp: string; gps: { lat: number; lng: number } }
+  _checkpoints: Checkpoint[],
+  scan: { checkpointId: string; timestamp: string; gps: { lat: number; lng: number } },
+  _scannedIds: string[] = []
 ): ValidationResult {
   const checkpointIndex = route.checkpoints.indexOf(scan.checkpointId);
   if (checkpointIndex === -1) {
@@ -31,27 +32,20 @@ export function validateCheckpointScan(
 
   const expectedNext = session.checkpointsCompleted;
   const expectedCheckpointId = route.checkpoints[expectedNext];
+  const isNextInSequence = scan.checkpointId === expectedCheckpointId;
 
-  if (scan.checkpointId !== expectedCheckpointId) {
-    if (checkpointIndex < expectedNext) {
-      return {
-        valid: false,
-        violation: {
-          sessionId: session.id,
-          type: 'out-of-order',
-          reason: 'Checkpoint scanned out of sequence',
-          timestamp: scan.timestamp,
-          gps: scan.gps,
-          critical: false,
-        },
-      };
-    }
-    return {
-      valid: false,
+  let result: ValidationResult = { valid: true };
+
+  if (!isNextInSequence) {
+    const skippedAhead = checkpointIndex > expectedNext;
+    result = {
+      valid: true,
       violation: {
         sessionId: session.id,
-        type: 'skipped-checkpoint',
-        reason: 'Checkpoint skipped or scanned out of order',
+        type: skippedAhead ? 'skipped-checkpoint' : 'out-of-order',
+        reason: skippedAhead
+          ? 'Checkpoint scanned out of route sequence'
+          : 'Checkpoint scanned out of sequence',
         timestamp: scan.timestamp,
         gps: scan.gps,
         critical: false,
@@ -75,17 +69,22 @@ export function validateCheckpointScan(
         gps: scan.gps,
         critical: false,
       },
+      nextExpectedCheckpointId: route.checkpoints[expectedNext + 1],
     };
   }
 
-  return { valid: true, nextExpectedCheckpointId: route.checkpoints[expectedNext + 1] };
+  return {
+    ...result,
+    nextExpectedCheckpointId: route.checkpoints[expectedNext + 1],
+  };
 }
 
 export function generateScanEvent(
   sessionId: string,
   checkpointId: string,
   gps: { lat: number; lng: number },
-  deviceId: string
+  deviceId: string,
+  comment?: string
 ): ScanEvent {
   return {
     id: `SE-${Date.now()}`,
@@ -94,5 +93,6 @@ export function generateScanEvent(
     timestamp: new Date().toISOString(),
     gps,
     deviceId,
+    ...(comment ? { comment } : {}),
   };
 }

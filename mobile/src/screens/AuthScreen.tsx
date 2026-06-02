@@ -1,15 +1,17 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, Pressable, Modal, ScrollView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
+import QRCode from 'react-native-qrcode-svg';
 import type { RootStackParamList } from '../navigation/types';
 import type { ThemeColors } from '../theme/colors';
 import { formatImeiDisplay } from '../theme/fieldTheme';
 import { useAppTheme } from '../context/ThemeContext';
 import { usePatrol } from '../context/PatrolContext';
+import { generateOfficerToken } from '../lib/qrService';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Auth'>;
 
@@ -21,10 +23,14 @@ export function AuthScreen() {
   const navigation = useNavigation<Nav>();
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { deviceId } = usePatrol();
+  const { deviceId, officers } = usePatrol();
+  const [testQrVisible, setTestQrVisible] = useState(false);
   const imeiLabel = formatImeiDisplay(deviceId);
   const version =
     Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? 'dev';
+
+  const testOfficer = officers.find((o) => o.status !== 'off-duty') ?? officers[0];
+  const testToken = testOfficer ? generateOfficerToken(testOfficer.id) : '';
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + 12 }]}>
@@ -54,13 +60,17 @@ export function AuthScreen() {
         <View style={styles.camCircle}>
           <Ionicons name="camera" size={36} color="#fff" />
         </View>
-        <Pressable style={styles.readyBtn} onPress={() => navigation.navigate('OfficerBind')}>
+        <Pressable style={styles.readyBtn} onPress={() => navigation.navigate('ScanOfficer')}>
           <Text style={styles.readyBtnText}>READY TO SCAN</Text>
         </Pressable>
       </View>
 
       <Pressable onPress={() => navigation.navigate('OfficerBind')}>
         <Text style={styles.manualLink}>Enter ID manually</Text>
+      </Pressable>
+
+      <Pressable onPress={() => setTestQrVisible(true)}>
+        <Text style={styles.testLink}>Get test login QR</Text>
       </Pressable>
 
       <View style={{ flex: 1 }} />
@@ -72,6 +82,42 @@ export function AuthScreen() {
         </View>
         <Text style={styles.version}>v{version}</Text>
       </View>
+
+      <Modal
+        visible={testQrVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setTestQrVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalCard, { paddingBottom: insets.bottom + 24 }]}>
+            <Text style={styles.modalTitle}>Test login QR</Text>
+            {testOfficer ? (
+              <ScrollView contentContainerStyle={styles.modalBody}>
+                <Text style={styles.modalOfficer}>{testOfficer.name}</Text>
+                <Text style={styles.modalMeta}>
+                  {testOfficer.id} · {testOfficer.nic}
+                </Text>
+                <View style={styles.qrWrap}>
+                  <QRCode value={testToken} size={200} backgroundColor="#fff" color="#000" />
+                </View>
+                <Text style={styles.tokenLabel} selectable>
+                  {testToken}
+                </Text>
+                <Text style={styles.modalHint}>
+                  For officer login only — not for patrol checkpoint scans. Use Patrol → Test checkpoint QRs
+                  for checkpoint testing.
+                </Text>
+              </ScrollView>
+            ) : (
+              <Text style={styles.modalHint}>No officers available.</Text>
+            )}
+            <Pressable style={styles.modalClose} onPress={() => setTestQrVisible(false)}>
+              <Text style={styles.modalCloseText}>Close</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -169,9 +215,67 @@ function createStyles(c: ThemeColors) {
       fontSize: 15,
       fontWeight: '600',
     },
+    testLink: {
+      marginTop: 12,
+      textAlign: 'center',
+      color: c.textMuted,
+      fontSize: 14,
+      fontWeight: '600',
+      textDecorationLine: 'underline',
+    },
     footer: { alignItems: 'center' },
     footerRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     footerMuted: { color: c.textMuted, fontSize: 13 },
     version: { color: c.textMuted, fontSize: 11, marginTop: 8, opacity: 0.7 },
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.65)',
+      justifyContent: 'flex-end',
+    },
+    modalCard: {
+      backgroundColor: c.bgElevated,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingHorizontal: 24,
+      paddingTop: 24,
+      maxHeight: '85%',
+    },
+    modalTitle: {
+      color: c.textOnDark,
+      fontSize: 20,
+      fontWeight: '800',
+      textAlign: 'center',
+      marginBottom: 16,
+    },
+    modalBody: { alignItems: 'center', paddingBottom: 16 },
+    modalOfficer: { color: c.textOnDark, fontSize: 18, fontWeight: '700' },
+    modalMeta: { color: c.textMuted, fontSize: 13, marginTop: 4, marginBottom: 20 },
+    qrWrap: {
+      padding: 16,
+      backgroundColor: '#fff',
+      borderRadius: 12,
+      marginBottom: 16,
+    },
+    tokenLabel: {
+      color: c.textMuted,
+      fontSize: 11,
+      fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+      textAlign: 'center',
+      marginBottom: 12,
+    },
+    modalHint: {
+      color: c.textMuted,
+      fontSize: 14,
+      lineHeight: 20,
+      textAlign: 'center',
+    },
+    modalClose: {
+      backgroundColor: c.primary,
+      paddingVertical: 15,
+      borderRadius: 14,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    modalCloseText: { color: '#fff', fontWeight: '800', fontSize: 16 },
   });
 }

@@ -10,7 +10,7 @@ import React, {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Officer, PatrolSession, Route, Checkpoint } from '../types';
 import { CHECKPOINTS, DEFAULT_ROUTE, DEVICE_ID, OFFICERS } from '../data/patrolData';
-import { validateQRToken } from '../lib/qrService';
+import { validateQRToken, validateOfficerToken, parseOfficerToken } from '../lib/qrService';
 import { generateScanEvent, validateCheckpointScan } from '../lib/routeEngine';
 import { getQueueLength, queueEvent, syncQueue } from '../lib/offlineQueue';
 
@@ -31,12 +31,17 @@ type PatrolContextValue = {
   refreshPendingCount: () => Promise<void>;
   setOffline: (v: boolean) => void;
   bindOfficer: (officerId: string) => boolean;
+  bindOfficerFromQR: (qrData: string) => { ok: boolean; message: string };
   beginPatrol: () => void;
   /** Ends active patrol only; keeps officer bound to device */
   endPatrol: () => void;
   /** Clears officer + session (return to auth) */
   signOut: () => void;
-  submitCheckpointScan: (checkpointId: string, qrData?: string) => { ok: boolean; message: string };
+  submitCheckpointScan: (
+    checkpointId: string,
+    qrData?: string,
+    options?: { comment?: string }
+  ) => { ok: boolean; message: string };
   recordViolation: (reason: string) => void;
   recordIncident: (payload: { severity: string; type: string; description: string }) => void;
   triggerSOS: () => void;
@@ -88,6 +93,38 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
     return true;
   }, []);
 
+  const bindOfficerFromQR = useCallback(
+    (qrData: string) => {
+      const trimmed = qrData.trim();
+      if (!trimmed) return { ok: false, message: 'Empty QR code.' };
+
+      const validated = validateOfficerToken(trimmed, OFFICERS);
+      if (validated.valid && validated.officer) {
+        if (bindOfficer(validated.officer.id)) {
+          return { ok: true, message: `Welcome, ${validated.officer.name}` };
+        }
+      }
+
+      const parsed = parseOfficerToken(trimmed);
+      if (parsed) {
+        const o = OFFICERS.find((x) => x.id === parsed.officerId);
+        if (o?.status === 'off-duty') {
+          return { ok: false, message: 'Officer cannot be bound while off duty.' };
+        }
+      }
+
+      const bareMatch = OFFICERS.find(
+        (o) => o.id.toLowerCase() === trimmed.toLowerCase() && o.status !== 'off-duty'
+      );
+      if (bareMatch && bindOfficer(bareMatch.id)) {
+        return { ok: true, message: `Welcome, ${bareMatch.name}` };
+      }
+
+      return { ok: false, message: 'Invalid officer QR code.' };
+    },
+    [bindOfficer]
+  );
+
   const beginPatrol = useCallback(() => {
     if (!officer) return;
     const id = `PS-${Date.now().toString().slice(-6)}`;
@@ -119,7 +156,7 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const submitCheckpointScan = useCallback(
-    (checkpointId: string, qrData?: string) => {
+    (checkpointId: string, qrData?: string, options?: { comment?: string }) => {
       if (!session) return { ok: false, message: 'No active session' };
 
       const cp = CHECKPOINTS.find((c) => c.id === checkpointId);
@@ -135,16 +172,25 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
         return { ok: false, message: 'QR does not match this checkpoint' };
       }
 
+      const comment = options?.comment?.trim();
+      if (!comment) return { ok: false, message: 'Please add a comment before confirming' };
+
       const sessionForEngine: PatrolSession = {
         ...session,
         checkpointsCompleted: scannedIds.length,
       };
 
-      const validation = validateCheckpointScan(sessionForEngine, DEFAULT_ROUTE, CHECKPOINTS, {
-        checkpointId,
-        timestamp: new Date().toISOString(),
-        gps: { lat: cp.lat, lng: cp.lng },
-      });
+      const validation = validateCheckpointScan(
+        sessionForEngine,
+        DEFAULT_ROUTE,
+        CHECKPOINTS,
+        {
+          checkpointId,
+          timestamp: new Date().toISOString(),
+          gps: { lat: cp.lat, lng: cp.lng },
+        },
+        scannedIds
+      );
 
       if (!validation.valid && validation.violation) {
         const v = { ...validation.violation, id: `V-${Date.now()}` };
@@ -159,7 +205,13 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
       const newScanned = [...scannedIds, checkpointId];
       setScannedIds(newScanned);
 
-      const event = generateScanEvent(session.id, checkpointId, { lat: cp.lat, lng: cp.lng }, DEVICE_ID);
+      const event = generateScanEvent(
+        session.id,
+        checkpointId,
+        { lat: cp.lat, lng: cp.lng },
+        DEVICE_ID,
+        comment
+      );
       if (isOffline) void queueEvent({ type: 'scan', payload: event });
       void refreshPendingCount();
 
@@ -174,9 +226,9 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
       );
 
       if (newScanned.length >= DEFAULT_ROUTE.checkpoints.length) {
-        return { ok: true, message: 'Patrol complete' };
+        return { ok: true, message: 'Patrol complete — checkpoint saved.' };
       }
-      return { ok: true, message: `Verified: ${cp.name}` };
+      return { ok: true, message: `${cp.name} saved successfully.` };
     },
     [session, scannedIds, isOffline, refreshPendingCount]
   );
@@ -254,6 +306,7 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
       refreshPendingCount,
       setOffline,
       bindOfficer,
+      bindOfficerFromQR,
       beginPatrol,
       endPatrol,
       signOut,
@@ -275,6 +328,7 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
       refreshPendingCount,
       setOffline,
       bindOfficer,
+      bindOfficerFromQR,
       beginPatrol,
       endPatrol,
       signOut,

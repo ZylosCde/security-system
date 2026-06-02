@@ -11,26 +11,30 @@ type Nav = NativeStackNavigationProp<RootStackParamList, 'Splash'>;
 export function SplashScreen() {
   const navigation = useNavigation<Nav>();
   const { colors, ready } = useAppTheme();
-  const { hydrated } = usePatrol();
+  const { hydrated, officer } = usePatrol();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   useEffect(() => {
     if (!ready || !hydrated) return;
     const id = setTimeout(() => {
+      const destination = officer ? 'Main' : 'Auth';
       navigation.dispatch(
         CommonActions.reset({
           index: 0,
-          routes: [
-            {
-              name: 'Main',
-              state: { routes: [{ name: 'Dashboard' }], index: 0 },
-            },
-          ],
+          routes:
+            destination === 'Main'
+              ? [
+                  {
+                    name: 'Main',
+                    state: { routes: [{ name: 'Dashboard' }], index: 0 },
+                  },
+                ]
+              : [{ name: 'Auth' }],
         })
       );
     }, 400);
     return () => clearTimeout(id);
-  }, [ready, hydrated, navigation]);
+  }, [ready, hydrated, officer, navigation]);
 
   return (
     <View style={styles.wrap} accessibilityLabel="Loading">

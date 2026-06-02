@@ -50,4 +50,5 @@ export interface ScanEvent {
   timestamp: string;
   gps: { lat: number; lng: number };
   deviceId: string;
+  comment?: string;
 }

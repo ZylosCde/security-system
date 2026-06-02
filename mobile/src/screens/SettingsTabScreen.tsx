@@ -24,12 +24,7 @@ export function SettingsTabScreen() {
             rootNavigationRef.dispatch(
               CommonActions.reset({
                 index: 0,
-                routes: [
-                  {
-                    name: 'Main',
-                    state: { routes: [{ name: 'Dashboard' }], index: 0 },
-                  },
-                ],
+                routes: [{ name: 'Auth' }],
               })
             );
           }

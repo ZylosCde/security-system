@@ -5,6 +5,7 @@ import type { RootStackParamList } from './types';
 import { rootNavigationRef } from './rootNavigationRef';
 import { MainTabNavigator } from './MainTabNavigator';
 import { AuthScreen } from '../screens/AuthScreen';
+import { ScanOfficerScreen } from '../screens/ScanOfficerScreen';
 import { OfficerBindScreen } from '../screens/OfficerBindScreen';
 import { SplashScreen } from '../screens/SplashScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
@@ -42,6 +43,7 @@ export function RootNavigator() {
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="Main" component={MainTabNavigator} />
         <Stack.Screen name="Auth" component={AuthScreen} />
+        <Stack.Screen name="ScanOfficer" component={ScanOfficerScreen} />
         <Stack.Screen name="OfficerBind" component={OfficerBindScreen} />
         <Stack.Screen
           name="Profile"

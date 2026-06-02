@@ -1,8 +1,10 @@
-import { Checkpoint } from './types';
+import QRCode from 'qrcode';
+import { Checkpoint, Officer } from './types';
 
 // Simple rotating HMAC simulation using timestamp-based key
 // In production: use Web Crypto subtle with server-shared secret
 const SECRET_KEY = 'AEGIS-PATROL-SECRET-2026';
+const OFFICER_PREFIX = 'OFFICER';
 
 function simpleHash(input: string): string {
   let hash = 0;
@@ -35,9 +37,38 @@ export function validateQRToken(token: string, checkpoints: Checkpoint[]): { val
   return { valid, checkpoint: valid ? checkpoint : undefined };
 }
 
-export function getQRCodeDataURL(token: string): string {
-  // Placeholder: in real app use qrcode lib or canvas
-  // Returns a data URL for a simple SVG QR-like representation
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect width="200" height="200" fill="#fff"/><text x="100" y="100" text-anchor="middle" font-size="12" fill="#000">${token}</text></svg>`;
-  return `data:image/svg+xml;base64,${btoa(svg)}`;
+export function generateOfficerToken(officerId: string): string {
+  const payload = `${officerId}:${SECRET_KEY}`;
+  const signature = simpleHash(payload);
+  return `${OFFICER_PREFIX}:${officerId}:${signature}`;
+}
+
+export function parseOfficerToken(token: string): { officerId: string } | null {
+  const parts = token.trim().split(':');
+  if (parts.length !== 3 || parts[0] !== OFFICER_PREFIX) return null;
+  return { officerId: parts[1] };
+}
+
+export function validateOfficerToken(
+  token: string,
+  officers: Officer[]
+): { valid: boolean; officer?: Officer } {
+  const parsed = parseOfficerToken(token);
+  if (!parsed) return { valid: false };
+
+  const expected = generateOfficerToken(parsed.officerId);
+  if (token.trim() !== expected) return { valid: false };
+
+  const officer = officers.find((o) => o.id === parsed.officerId);
+  if (!officer || officer.status === 'off-duty') return { valid: false };
+
+  return { valid: true, officer };
+}
+
+export async function getQRCodeDataURL(token: string): Promise<string> {
+  return QRCode.toDataURL(token, { width: 200, margin: 2 });
+}
+
+export async function getOfficerQRDataURL(officerId: string): Promise<string> {
+  return getQRCodeDataURL(generateOfficerToken(officerId));
 }
