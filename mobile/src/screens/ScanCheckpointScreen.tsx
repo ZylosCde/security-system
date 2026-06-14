@@ -7,46 +7,26 @@ import {
   TextInput,
   Alert,
   Platform,
-  Modal,
   ScrollView,
   ActivityIndicator,
   Switch,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import type { PatrolStackParamList } from '../navigation/types';
 import type { ThemeColors } from '../theme/colors';
-import type { Checkpoint } from '../types';
 import { useAppTheme } from '../context/ThemeContext';
 import { usePatrol } from '../context/PatrolContext';
-import { validateQRToken, describeCheckpointScanFailure } from '../lib/qrService';
-import {
-  formatCoordinates,
-  formatLocaleDateOnly,
-  formatLocaleTime,
-} from '../lib/localeFormat';
+import { validateQRToken, describeCheckpointScanFailure, parseCheckpointQrValue } from '../lib/qrService';
+import { formatLocaleTime } from '../lib/localeFormat';
+import { rootNavigationRef } from '../navigation/rootNavigationRef';
 
 type Nav = NativeStackNavigationProp<PatrolStackParamList, 'ScanCheckpoint'>;
 
-type ScanPhase = 'scanning' | 'review' | 'saving' | 'success';
-
-type PendingScan = {
-  qrData: string;
-  checkpoint: Checkpoint;
-  scannedAt: Date;
-};
-
-const CONDITION_OPTIONS = [
-  { id: 'good', label: 'Looks good' },
-  { id: 'routine', label: 'Routine check complete' },
-  { id: 'issue', label: 'Something needs attention' },
-  { id: 'custom', label: 'Add custom note' },
-] as const;
-
-type ConditionId = (typeof CONDITION_OPTIONS)[number]['id'];
+type ScanPhase = 'scanning' | 'saving' | 'success' | 'failure';
 
 export function ScanCheckpointScreen() {
   const navigation = useNavigation<Nav>();
@@ -59,21 +39,24 @@ export function ScanCheckpointScreen() {
     route: patrolRoute,
     scannedIds,
     officer,
+    siteId,
     isOffline,
     setOffline,
     pendingSyncCount,
     flushOfflineQueue,
-    endPatrol,
+    completePatrolAndSignOut,
   } = usePatrol();
   const [permission, requestPermission] = useCameraPermissions();
   const [phase, setPhase] = useState<ScanPhase>('scanning');
   const [torchOn, setTorchOn] = useState(false);
-  const [pending, setPending] = useState<PendingScan | null>(null);
-  const [conditionId, setConditionId] = useState<ConditionId>('good');
-  const [customNote, setCustomNote] = useState('');
+  const [lastCheckpointName, setLastCheckpointName] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [manual, setManual] = useState('');
   const [scannedAtByCheckpoint, setScannedAtByCheckpoint] = useState<Record<string, string>>({});
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
   const lastData = useRef<string | null>(null);
 
   const routeCheckpointIds = useMemo(
@@ -81,60 +64,125 @@ export function ScanCheckpointScreen() {
     [patrolRoute.checkpoints]
   );
 
+  const pendingCheckpoints = useMemo(() => {
+    return patrolRoute.checkpoints
+      .map(id => checkpoints.find(c => c.id === id))
+      .filter((c): c is NonNullable<typeof c> => !!c && !scannedIds.includes(c.id));
+  }, [patrolRoute.checkpoints, checkpoints, scannedIds]);
+
+  const completedCheckpoints = useMemo(() => {
+    return patrolRoute.checkpoints
+      .map(id => checkpoints.find(c => c.id === id))
+      .filter((c): c is NonNullable<typeof c> => !!c && scannedIds.includes(c.id));
+  }, [patrolRoute.checkpoints, checkpoints, scannedIds]);
+
   const resetScanner = useCallback(() => {
     lastData.current = null;
-    setPending(null);
-    setConditionId('good');
-    setCustomNote('');
     setPhase('scanning');
   }, []);
 
-  const resolveConditionText = useCallback((): string | null => {
-    if (conditionId === 'custom') {
-      const t = customNote.trim();
-      return t.length > 0 ? t : null;
+  const goHome = useCallback(() => {
+    if (rootNavigationRef.isReady()) {
+      rootNavigationRef.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [
+            {
+              name: 'Main',
+              state: { routes: [{ name: 'Home' }], index: 0 },
+            },
+          ],
+        })
+      );
     }
-    return CONDITION_OPTIONS.find((o) => o.id === conditionId)?.label ?? null;
-  }, [conditionId, customNote]);
+  }, []);
 
-  const openReview = useCallback(
-    (data: string) => {
+  const processScan = useCallback(
+    async (data: string) => {
       const trimmed = data.trim();
-      const qr = validateQRToken(trimmed, checkpoints);
-      if (!qr.valid || !qr.checkpoint) {
+      const json = parseCheckpointQrValue(trimmed);
+
+      const showFailure = (msg: string) => {
+        setStatusMessage(msg);
+        setPhase('failure');
+        setTimeout(() => {
+          setPhase('scanning');
+          lastData.current = null;
+        }, 2500);
+      };
+
+      if (json && siteId != null && json.siteId !== siteId) {
+        showFailure('Wrong site: This checkpoint belongs to a different site.');
+        return;
+      }
+
+      let checkpoint =
+        checkpoints.find(
+          (c) =>
+            c.code?.toLowerCase() === trimmed.toLowerCase() ||
+            (c.qrToken?.toLowerCase() ?? '') === trimmed.toLowerCase() ||
+            c.id === trimmed ||
+            (json ? c.id === String(json.id) : false)
+        ) ?? null;
+
+      if (!checkpoint) {
+        const qr = validateQRToken(trimmed, checkpoints);
+        if (qr.valid && qr.checkpoint) checkpoint = qr.checkpoint;
+      }
+
+      if (!checkpoint) {
         const failure = describeCheckpointScanFailure(trimmed, checkpoints);
-        Alert.alert(
-          failure.title,
-          failure.message,
-          failure.canOpenSampleQr
-            ? [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Test checkpoint QRs', onPress: () => navigation.navigate('SampleQr') },
-              ]
-            : [{ text: 'OK' }]
-        );
-        lastData.current = null;
+        showFailure(`${failure.title}: ${failure.message}`);
         return;
       }
 
-      if (!routeCheckpointIds.has(qr.checkpoint.id)) {
-        Alert.alert('Not on route', `${qr.checkpoint.name} is not on your assigned patrol route.`);
-        lastData.current = null;
+      if (!routeCheckpointIds.has(checkpoint.id)) {
+        showFailure(`Not on route: ${checkpoint.name} is not on your patrol route.`);
         return;
       }
 
-      if (scannedIds.includes(qr.checkpoint.id)) {
-        Alert.alert('Already saved', `${qr.checkpoint.name} was already recorded.`);
-        lastData.current = null;
+      if (scannedIds.includes(checkpoint.id)) {
+        showFailure(`Already completed: ${checkpoint.name} was already scanned.`);
         return;
       }
 
-      setPending({ qrData: trimmed, checkpoint: qr.checkpoint, scannedAt: new Date() });
-      setConditionId('good');
-      setCustomNote('');
-      setPhase('review');
+      setPhase('saving');
+      const scannedAt = new Date();
+      const res = await submitCheckpointScan(checkpoint.id, trimmed);
+      if (res.ok) {
+        setScannedAtByCheckpoint((prev) => ({
+          ...prev,
+          [checkpoint.id]: scannedAt.toISOString(),
+        }));
+        setLastCheckpointName(checkpoint.name);
+        setSuccessMessage('Checkpoint successfully completed');
+        setPhase('success');
+        if (res.allDone) {
+          setTimeout(() => {
+            void completePatrolAndSignOut().then(goHome);
+          }, 1800);
+        } else {
+          setTimeout(() => {
+            setCameraActive(false); // Close camera automatically on success
+            resetScanner();
+          }, 1800);
+        }
+      } else {
+        showFailure(`Scan failed: ${res.message}`);
+      }
     },
-    [checkpoints, routeCheckpointIds, scannedIds, navigation]
+    [
+      checkpoints,
+      routeCheckpointIds,
+      scannedIds,
+      navigation,
+      siteId,
+      submitCheckpointScan,
+      completePatrolAndSignOut,
+      isOffline,
+      goHome,
+      resetScanner,
+    ]
   );
 
   const onBarcodeScanned = useCallback(
@@ -142,58 +190,15 @@ export function ScanCheckpointScreen() {
       if (phase !== 'scanning') return;
       if (data === lastData.current) return;
       lastData.current = data;
-      openReview(data);
+      void processScan(data);
     },
-    [phase, openReview]
+    [phase, processScan]
   );
-
-  const handleConfirm = useCallback(() => {
-    if (!pending) return;
-    const comment = resolveConditionText();
-    if (!comment) {
-      Alert.alert('Condition required', 'Select a condition or type your custom note.');
-      return;
-    }
-
-    setPhase('saving');
-    const res = submitCheckpointScan(pending.checkpoint.id, pending.qrData, { comment });
-    if (res.ok) {
-      setScannedAtByCheckpoint((prev) => ({
-        ...prev,
-        [pending.checkpoint.id]: pending.scannedAt.toISOString(),
-      }));
-      setSuccessMessage(res.message);
-      setPhase('success');
-      const patrolDone = scannedIds.length + 1 >= patrolRoute.checkpoints.length;
-      setTimeout(() => {
-        if (patrolDone) {
-          navigation.replace('PatrolHome');
-        } else {
-          resetScanner();
-        }
-      }, 1800);
-    } else {
-      setPhase('review');
-      Alert.alert('Could not save', res.message);
-    }
-  }, [
-    pending,
-    resolveConditionText,
-    submitCheckpointScan,
-    scannedIds.length,
-    patrolRoute.checkpoints.length,
-    navigation,
-    resetScanner,
-  ]);
-
-  const cancelReview = () => {
-    resetScanner();
-  };
 
   const submitManual = () => {
     if (!manual.trim() || phase !== 'scanning') return;
     lastData.current = manual.trim();
-    openReview(manual.trim());
+    void processScan(manual.trim());
     setManual('');
   };
 
@@ -230,14 +235,19 @@ export function ScanCheckpointScreen() {
   const scanningActive = phase === 'scanning';
 
   const confirmEndPatrol = () => {
-    Alert.alert('End patrol?', 'Progress will clear. You stay signed in on this device.', [
+    if (completed < total) {
+      Alert.alert(
+        'Patrol incomplete',
+        `Complete all ${total} checkpoints before ending. (${completed}/${total} done)`
+      );
+      return;
+    }
+    Alert.alert('End patrol?', 'All checkpoints are done. Sign out and return home?', [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'End patrol',
-        style: 'destructive',
+        text: 'Finish',
         onPress: () => {
-          endPatrol();
-          navigation.replace('PatrolHome');
+          void completePatrolAndSignOut().then(goHome);
         },
       },
     ]);
@@ -264,117 +274,203 @@ export function ScanCheckpointScreen() {
         </View>
       </View>
 
-      {pendingSyncCount > 0 ? (
+      {pendingSyncCount > 0 || syncing || syncError ? (
         <Pressable
           style={styles.syncBanner}
-          onPress={() =>
-            void flushOfflineQueue().then((n) => Alert.alert('Synced', `${n} events uploaded (demo).`))
-          }
+          disabled={syncing}
+          onPress={() => {
+            setSyncError(null);
+            setSyncing(true);
+            void flushOfflineQueue()
+              .then((n) => {
+                Alert.alert('Synced', `${n} scan(s) uploaded to server.`);
+              })
+              .catch((e: unknown) => {
+                const msg = e instanceof Error ? e.message : 'Sync failed';
+                setSyncError(msg);
+              })
+              .finally(() => setSyncing(false));
+          }}
         >
-          <Text style={styles.syncText}>{pendingSyncCount} queued — tap to sync</Text>
+          {syncing ? (
+            <ActivityIndicator size="small" color={colors.warning} style={{ marginRight: 8 }} />
+          ) : null}
+          <View style={{ flex: 1 }}>
+            <Text style={styles.syncText}>
+              {syncing
+                ? 'Syncing queued scans…'
+                : `${pendingSyncCount} queued — tap to sync`}
+            </Text>
+            {syncError ? (
+              <Text style={styles.syncErrorText}>{syncError}</Text>
+            ) : null}
+          </View>
         </Pressable>
       ) : null}
 
-      <View style={styles.hintRow}>
-        <Text style={styles.hint}>
-          {scanningActive
-            ? 'Scan any checkpoint QR on your route'
-            : phase === 'success'
-              ? 'Saved — ready for next scan'
-              : 'Review scan details'}
-        </Text>
-        {scanningActive ? (
-          <Pressable
-            onPress={() => navigation.navigate('SampleQr')}
-            accessibilityRole="button"
-            accessibilityLabel="Open test checkpoint QR codes"
-          >
-            <Text style={styles.hintLink}>Test QRs</Text>
-          </Pressable>
-        ) : null}
-      </View>
-
-      <ScrollView
-        style={styles.checkpointList}
-        contentContainerStyle={styles.checkpointListContent}
-        showsVerticalScrollIndicator={false}
-        nestedScrollEnabled
-      >
-        {patrolRoute.checkpoints.map((cpId) => {
-          const cp = checkpoints.find((c) => c.id === cpId);
-          if (!cp) return null;
-          const done = scannedIds.includes(cpId);
-          const scannedAt = scannedAtByCheckpoint[cpId];
-          return (
-            <View key={cpId} style={[styles.checkpointRow, done && styles.checkpointRowDone]}>
-              <Ionicons
-                name={done ? 'checkmark-circle' : 'ellipse-outline'}
-                size={22}
-                color={done ? colors.success : colors.textMuted}
-              />
-              <View style={styles.checkpointRowText}>
-                <Text style={[styles.checkpointName, done && styles.checkpointNameDone]} numberOfLines={1}>
-                  {cp.name}
-                </Text>
-                {done && scannedAt ? (
-                  <Text style={styles.checkpointTime}>{formatLocaleTime(new Date(scannedAt))}</Text>
-                ) : (
-                  <Text style={styles.checkpointPending}>Not scanned</Text>
-                )}
-              </View>
-            </View>
-          );
-        })}
-      </ScrollView>
-
-      <View style={styles.cameraWrap}>
-        <CameraView
-          style={styles.camera}
-          facing="back"
-          enableTorch={torchOn}
-          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-          onBarcodeScanned={scanningActive ? onBarcodeScanned : undefined}
-        />
-        {scanningActive ? (
-          <View style={styles.overlay}>
-            <View style={styles.frame} />
+      {cameraActive ? (
+        // ACTIVE CAMERA SCANNER VIEW
+        <View style={{ flex: 1 }}>
+          <View style={styles.hintRow}>
+            <Text style={styles.hint}>
+              {scanningActive
+                ? 'Scan any checkpoint QR on your route'
+                : phase === 'success'
+                  ? 'Scan successful!'
+                  : phase === 'failure'
+                    ? 'Scan failed'
+                    : 'Saving checkpoint…'}
+            </Text>
             <Pressable
-              style={[styles.torchBtn, torchOn && styles.torchBtnOn]}
-              onPress={() => setTorchOn((v) => !v)}
-              accessibilityRole="button"
-              accessibilityLabel={torchOn ? 'Turn light off' : 'Turn light on'}
+              style={{ padding: 6, backgroundColor: colors.surface, borderRadius: 8 }}
+              onPress={() => setCameraActive(false)}
             >
-              <Ionicons name={torchOn ? 'flash' : 'flash-outline'} size={26} color="#fff" />
-              <Text style={styles.torchLabel}>{torchOn ? 'Light on' : 'Light'}</Text>
+              <Text style={{ color: colors.textOnDark, fontWeight: '700', fontSize: 13 }}>Close Scanner</Text>
             </Pressable>
           </View>
-        ) : null}
-        {phase === 'success' ? (
-          <View style={styles.successBanner}>
-            <Ionicons name="checkmark-circle" size={48} color={colors.success} />
-            <Text style={styles.successTitle}>Successful</Text>
-            <Text style={styles.successBody}>{successMessage}</Text>
+
+          <View style={styles.cameraWrap}>
+            <CameraView
+              style={styles.camera}
+              facing="back"
+              enableTorch={torchOn}
+              barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+              onBarcodeScanned={scanningActive ? onBarcodeScanned : undefined}
+            />
+            {scanningActive ? (
+              <View style={styles.overlay}>
+                <View style={styles.frame} />
+                <Pressable
+                  style={[styles.torchBtn, torchOn && styles.torchBtnOn]}
+                  onPress={() => setTorchOn((v) => !v)}
+                  accessibilityRole="button"
+                  accessibilityLabel={torchOn ? 'Turn light off' : 'Turn light on'}
+                >
+                  <Ionicons name={torchOn ? 'flash' : 'flash-outline'} size={26} color="#fff" />
+                  <Text style={styles.torchLabel}>{torchOn ? 'Light on' : 'Light'}</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {phase === 'saving' ? (
+              <View style={styles.successBanner}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={styles.successTitle}>Verifying scan…</Text>
+              </View>
+            ) : null}
+            {phase === 'success' ? (
+              <View style={styles.successBanner}>
+                <Ionicons name="checkmark-circle" size={48} color={colors.success} />
+                <Text style={styles.successTitle}>Scan successful</Text>
+                <Text style={styles.successBody}>
+                  {lastCheckpointName ? `${lastCheckpointName} — ` : ''}
+                  {successMessage}
+                </Text>
+              </View>
+            ) : null}
+            {phase === 'failure' ? (
+              <View style={[styles.successBanner, { backgroundColor: 'rgba(239, 68, 68, 0.92)' }]}>
+                <Ionicons name="close-circle" size={48} color="#fff" />
+                <Text style={[styles.successTitle, { color: '#fff' }]}>Scan Failed</Text>
+                <Text style={styles.successBody}>{statusMessage}</Text>
+              </View>
+            ) : null}
           </View>
-        ) : null}
-      </View>
 
-      {scanningActive ? (
-        <View style={styles.manualBox}>
-          <Text style={styles.manualLabel}>Manual token (low light)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Paste full QR payload"
-            placeholderTextColor={colors.textMuted}
-            value={manual}
-            onChangeText={setManual}
-            autoCapitalize="none"
-          />
-          <Pressable style={styles.secondary} onPress={submitManual}>
-            <Text style={styles.secondaryText}>Submit token</Text>
-          </Pressable>
+          <View style={styles.manualBox}>
+            <Text style={styles.manualLabel}>Manual token (low light)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Paste full QR payload"
+              placeholderTextColor={colors.textMuted}
+              value={manual}
+              onChangeText={setManual}
+              autoCapitalize="none"
+            />
+            <Pressable style={styles.secondary} onPress={submitManual}>
+              <Text style={styles.secondaryText}>Submit token</Text>
+            </Pressable>
+          </View>
         </View>
-      ) : null}
+      ) : (
+        // CHECKLIST VIEW WHEN CAMERA IS OFF
+        <View style={{ flex: 1 }}>
+          <Pressable
+            style={[styles.primary, { flexDirection: 'row', gap: 10, justifyContent: 'center', marginVertical: 12, backgroundColor: colors.primary }]}
+            onPress={() => setCameraActive(true)}
+          >
+            <Ionicons name="camera" size={20} color="#fff" />
+            <Text style={[styles.primaryText, { color: '#fff' }]}>OPEN CAMERA SCANNER</Text>
+          </Pressable>
 
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+            {/* PENDING CHECKPOINTS */}
+            <View style={{ marginBottom: 14 }}>
+              <Text style={{ color: colors.textMuted, fontSize: 13, fontWeight: '700', marginBottom: 8, letterSpacing: 0.5 }}>
+                PENDING POINTS ({pendingCheckpoints.length})
+              </Text>
+              {pendingCheckpoints.length === 0 ? (
+                <Text style={{ color: colors.textMuted, fontSize: 13, fontStyle: 'italic', paddingLeft: 8 }}>
+                  No pending checkpoints
+                </Text>
+              ) : (
+                pendingCheckpoints.map((cp) => (
+                  <View key={cp.id} style={[styles.checkpointRow, { marginBottom: 6 }]}>
+                    <Ionicons name="ellipse-outline" size={20} color={colors.textMuted} />
+                    <View style={styles.checkpointRowText}>
+                      <Text style={styles.checkpointName} numberOfLines={1}>{cp.name}</Text>
+                      <Text style={styles.checkpointPending}>Not scanned yet</Text>
+                    </View>
+                  </View>
+                ))
+              )}
+            </View>
+
+            {/* COMPLETED CHECKPOINTS */}
+            <View style={{ marginBottom: 14 }}>
+              <Text style={{ color: colors.success, fontSize: 13, fontWeight: '700', marginBottom: 8, letterSpacing: 0.5 }}>
+                COMPLETED POINTS ({completedCheckpoints.length})
+              </Text>
+              {completedCheckpoints.length === 0 ? (
+                <Text style={{ color: colors.textMuted, fontSize: 13, fontStyle: 'italic', paddingLeft: 8 }}>
+                  No checkpoints completed yet
+                </Text>
+              ) : (
+                completedCheckpoints.map((cp) => {
+                  const scannedAt = scannedAtByCheckpoint[cp.id];
+                  return (
+                    <View key={cp.id} style={[styles.checkpointRow, styles.checkpointRowDone, { marginBottom: 6 }]}>
+                      <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                      <View style={styles.checkpointRowText}>
+                        <Text style={[styles.checkpointName, styles.checkpointNameDone]} numberOfLines={1}>{cp.name}</Text>
+                        <Text style={styles.checkpointTime}>
+                          {scannedAt ? formatLocaleTime(new Date(scannedAt)) : 'Completed'}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </View>
+          </ScrollView>
+
+          <View style={styles.manualBox}>
+            <Text style={styles.manualLabel}>Manual token entry</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Paste full QR payload"
+              placeholderTextColor={colors.textMuted}
+              value={manual}
+              onChangeText={setManual}
+              autoCapitalize="none"
+            />
+            <Pressable style={styles.secondary} onPress={submitManual}>
+              <Text style={styles.secondaryText}>Submit token</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      {/* ACTION ROW & SOS FAB - ALWAYS SHOW AT BOTTOM FOR EASY ACCESS */}
       <View style={styles.actionRow}>
         <Pressable style={styles.actionBtn} onPress={() => navigation.navigate('Violation')}>
           <Text style={styles.actionBtnText}>Violation</Text>
@@ -396,113 +492,11 @@ export function ScanCheckpointScreen() {
         <Text style={styles.sosFabText}>SOS</Text>
       </Pressable>
 
-      <Modal visible={phase === 'review' || phase === 'saving'} transparent animationType="slide">
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.modalTitle}>Checkpoint scanned</Text>
-              <Text style={styles.modalSubtitle}>Select a condition and submit to record this scan.</Text>
-
-              {pending ? (
-                <>
-                  <DetailRow label="Location" value={pending.checkpoint.name} />
-                  <DetailRow label="Premises" value={pending.checkpoint.premises} />
-                  <DetailRow label="Date" value={formatLocaleDateOnly(pending.scannedAt)} />
-                  <DetailRow label="Time" value={formatLocaleTime(pending.scannedAt)} />
-                  <DetailRow
-                    label="Coordinates"
-                    value={formatCoordinates(pending.checkpoint.lat, pending.checkpoint.lng)}
-                  />
-                  <DetailRow label="Latitude" value={String(pending.checkpoint.lat)} />
-                  <DetailRow label="Longitude" value={String(pending.checkpoint.lng)} />
-
-                  <Text style={styles.commentHeading}>Condition</Text>
-                  <View style={styles.commentGrid}>
-                    {CONDITION_OPTIONS.map((opt) => (
-                      <Pressable
-                        key={opt.id}
-                        style={[
-                          styles.commentChip,
-                          conditionId === opt.id && styles.commentChipActive,
-                        ]}
-                        onPress={() => setConditionId(opt.id)}
-                      >
-                        <Text
-                          style={[
-                            styles.commentChipText,
-                            conditionId === opt.id && styles.commentChipTextActive,
-                          ]}
-                        >
-                          {opt.label}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-
-                  {conditionId === 'custom' ? (
-                    <TextInput
-                      style={[styles.input, styles.specialInput]}
-                      placeholder="Type your note…"
-                      placeholderTextColor={colors.textMuted}
-                      value={customNote}
-                      onChangeText={setCustomNote}
-                      multiline
-                      numberOfLines={3}
-                      textAlignVertical="top"
-                    />
-                  ) : null}
-
-                  <View style={styles.modalActions}>
-                    <Pressable style={styles.cancelBtn} onPress={cancelReview} disabled={phase === 'saving'}>
-                      <Text style={styles.cancelBtnText}>Cancel</Text>
-                    </Pressable>
-                    <Pressable
-                      style={[styles.confirmBtn, phase === 'saving' && styles.confirmBtnDisabled]}
-                      onPress={handleConfirm}
-                      disabled={phase === 'saving'}
-                    >
-                      {phase === 'saving' ? (
-                        <ActivityIndicator color="#fff" />
-                      ) : (
-                        <Text style={styles.confirmBtnText}>Submit</Text>
-                      )}
-                    </Pressable>
-                  </View>
-                </>
-              ) : null}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
       {Platform.OS === 'web' ? (
         <Text style={styles.webNote}>QR scanning in Expo web may be limited; use manual token.</Text>
       ) : null}
     </View>
   );
-}
-
-function DetailRow({ label, value }: { label: string; value: string }) {
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createDetailStyles(colors), [colors]);
-  return (
-    <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
-      <Text style={styles.value}>{value}</Text>
-    </View>
-  );
-}
-
-function createDetailStyles(c: ThemeColors) {
-  return StyleSheet.create({
-    row: {
-      paddingVertical: 10,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: c.borderLight,
-    },
-    label: { color: c.textMutedOnCard, fontSize: 12, fontWeight: '600', marginBottom: 4 },
-    value: { color: c.textOnCard, fontSize: 16, fontWeight: '700' },
-  });
 }
 
 function createStyles(c: ThemeColors) {
@@ -522,6 +516,8 @@ function createStyles(c: ThemeColors) {
     offlineWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     offlineLabel: { color: c.textMuted, fontSize: 11, fontWeight: '600' },
     syncBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
       backgroundColor: 'rgba(245, 158, 11, 0.15)',
       padding: 10,
       borderRadius: 10,
@@ -530,6 +526,7 @@ function createStyles(c: ThemeColors) {
       borderColor: 'rgba(245, 158, 11, 0.35)',
     },
     syncText: { color: c.warning, fontSize: 12, fontWeight: '700' },
+    syncErrorText: { color: c.danger, fontSize: 11, marginTop: 4, fontWeight: '600' },
     hintRow: {
       flexDirection: 'row',
       alignItems: 'center',

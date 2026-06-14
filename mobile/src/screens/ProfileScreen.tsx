@@ -31,12 +31,14 @@ export function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const { colors, preference, setPreference } = useAppTheme();
-  const { officer, deviceId, signOut } = usePatrol();
+  const { officer, deviceBinding, deviceId, signOut } = usePatrol();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const imei = formatImeiDisplay(deviceId);
+  const imeiLabel = deviceBinding
+    ? `IMEI ${deviceBinding.imeiNumber} (ID ${deviceBinding.deviceId})`
+    : formatImeiDisplay(deviceId);
 
   const onSignOut = () => {
-    Alert.alert('Sign out?', 'This device will require officer authentication again.', [
+    Alert.alert('Sign out?', 'You will need to sign in again. This handset stays registered.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Sign out',
@@ -69,7 +71,17 @@ export function ProfileScreen() {
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Device</Text>
-        <Text style={styles.mono}>{imei}</Text>
+        <Text style={styles.mono}>{imeiLabel}</Text>
+        <Pressable
+          style={styles.linkRow}
+          onPress={() => navigation.navigate('ScanAuthQr', { mode: 'device' })}
+          accessibilityRole="button"
+          accessibilityLabel="Re-scan device QR"
+        >
+          <Ionicons name="qr-code-outline" size={22} color={colors.primary} />
+          <Text style={styles.linkTxt}>Re-scan device QR</Text>
+          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+        </Pressable>
         <Pressable
           style={styles.linkRow}
           onPress={() => navigation.navigate('OfficerBind')}
@@ -122,12 +134,12 @@ export function ProfileScreen() {
 function createStyles(c: ThemeColors) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: c.bg },
-    content: { paddingHorizontal: 20, alignItems: 'stretch' },
+    content: { paddingHorizontal: 16, alignItems: 'stretch' },
     avatar: {
       alignSelf: 'center',
-      width: 88,
-      height: 88,
-      borderRadius: 44,
+      width: 72,
+      height: 72,
+      borderRadius: 36,
       backgroundColor: c.primarySoft,
       alignItems: 'center',
       justifyContent: 'center',
@@ -135,59 +147,59 @@ function createStyles(c: ThemeColors) {
     },
     name: {
       color: c.textOnDark,
-      fontSize: 24,
-      fontWeight: '800',
+      fontSize: 22,
+      fontWeight: '600',
       textAlign: 'center',
       marginTop: 16,
     },
     meta: { color: c.textMuted, textAlign: 'center', marginTop: 6, fontSize: 14 },
     card: {
-      marginTop: 28,
-      backgroundColor: c.bgElevated,
-      borderRadius: 16,
+      marginTop: 24,
+      backgroundColor: c.card,
+      borderRadius: 12,
       padding: 16,
-      borderWidth: 1,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: c.border,
     },
-    cardTitle: { color: c.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 },
-    mono: { color: c.textOnDark, fontSize: 14, fontVariant: ['tabular-nums'], marginBottom: 12 },
+    cardTitle: { color: c.textMuted, fontSize: 12, fontWeight: '600', marginBottom: 8 },
+    mono: { color: c.textOnCard, fontSize: 14, fontVariant: ['tabular-nums'], marginBottom: 8 },
     linkRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
       paddingVertical: 14,
       borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: c.border,
+      borderTopColor: c.divider,
     },
-    linkTxt: { flex: 1, color: c.textOnDark, fontSize: 16, fontWeight: '600' },
+    linkTxt: { flex: 1, color: c.textOnCard, fontSize: 16, fontWeight: '500' },
     section: {
       color: c.textMuted,
-      fontSize: 11,
-      fontWeight: '800',
-      letterSpacing: 1,
-      marginTop: 28,
-      marginBottom: 10,
+      fontSize: 12,
+      fontWeight: '600',
+      marginTop: 24,
+      marginBottom: 8,
     },
     segment: {
       flexDirection: 'row',
-      backgroundColor: c.bgElevated,
+      backgroundColor: c.card,
       borderRadius: 12,
       padding: 4,
-      borderWidth: 1,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: c.border,
     },
-    segBtn: { flex: 1, paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
+    segBtn: { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: 'center' },
     segOn: { backgroundColor: c.primary },
-    segTxt: { color: c.textMuted, fontWeight: '700', fontSize: 14 },
-    segTxtOn: { color: '#fff' },
+    segTxt: { color: c.textMuted, fontWeight: '500', fontSize: 14 },
+    segTxtOn: { color: c.onPrimary },
     signOut: {
-      marginTop: 28,
-      borderWidth: 1,
+      marginTop: 24,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: c.danger,
-      paddingVertical: 16,
-      borderRadius: 14,
+      paddingVertical: 14,
+      borderRadius: 12,
       alignItems: 'center',
+      backgroundColor: c.dangerSoft,
     },
-    signOutTxt: { color: c.danger, fontWeight: '800', fontSize: 16 },
+    signOutTxt: { color: c.danger, fontWeight: '600', fontSize: 16 },
   });
 }

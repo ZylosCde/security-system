@@ -1,384 +1,372 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Pressable,
-  Dimensions,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import type { MainTabParamList } from '../navigation/types';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import type { MainTabParamList, RootStackParamList } from '../navigation/types';
 import type { ThemeColors } from '../theme/colors';
-import { MOCK_FIELD_SESSIONS } from '../data/patrolData';
+import { spacing, radius } from '../theme/spacing';
+import { typography } from '../theme/typography';
 import { usePatrol } from '../context/PatrolContext';
 import { useAppTheme } from '../context/ThemeContext';
-import { formatLocaleDate } from '../lib/localeFormat';
-import { rootNavigationRef } from '../navigation/rootNavigationRef';
 
-const { width: W } = Dimensions.get('window');
+type RootNav = NativeStackNavigationProp<RootStackParamList>;
+type TabNav = BottomTabNavigationProp<MainTabParamList, 'Home'>;
 
-type TabNav = BottomTabNavigationProp<MainTabParamList, 'Dashboard'>;
+type LandingAction = {
+  key: 'sos' | 'incident' | 'patrol' | 'flashlight';
+  label: string;
+  sublabel: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  tone: 'danger' | 'primary' | 'neutral';
+};
+
+const LANDING_ACTIONS: LandingAction[] = [
+  {
+    key: 'sos',
+    label: 'SOS',
+    sublabel: 'Emergency alert to command',
+    icon: 'warning',
+    tone: 'danger',
+  },
+  {
+    key: 'incident',
+    label: 'Incident',
+    sublabel: 'Report an incident',
+    icon: 'document-text-outline',
+    tone: 'primary',
+  },
+  {
+    key: 'patrol',
+    label: 'Patrol',
+    sublabel: 'Start checkpoint patrol',
+    icon: 'footsteps',
+    tone: 'primary',
+  },
+  {
+    key: 'flashlight',
+    label: 'Flashlight off',
+    sublabel: 'Tap to turn light on',
+    icon: 'flash-off-outline',
+    tone: 'neutral',
+  },
+];
 
 export function DashboardScreen() {
   const insets = useSafeAreaInsets();
+  const rootNav = useNavigation<RootNav>();
   const navigation = useNavigation<TabNav>();
-  const { colors } = useAppTheme();
-  const { officer, session, route, scannedIds, sosBroadcasting } = usePatrol();
-  const [range, setRange] = useState<'today' | 'week'>('today');
-  const cardW = Math.min(140, W * 0.38);
-  const styles = useMemo(() => createStyles(colors, cardW), [colors, cardW]);
-  const updated = formatLocaleDate();
+  const { colors, ui } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { officer, deviceBinding, signOut, apiError } = usePatrol();
+  const [torchOn, setTorchOn] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
 
-  const ownProgress = session ? scannedIds.length / route.checkpoints.length : 0;
+  const firstName = officer?.name.split(' ')[0] ?? 'Officer';
 
-  const activeRows = [
-    ...(session && officer
-      ? [
-          {
-            id: 'me',
-            name: officer.name,
-            area: route.name,
-            progress: ownProgress,
-            self: true,
-          },
-        ]
-      : []),
-    ...MOCK_FIELD_SESSIONS.map((m) => ({
-      id: m.id,
-      name: m.officerName,
-      area: m.area,
-      progress: m.progress,
-      self: false,
-    })),
-  ];
+  const goPatrolScreen = (screen: 'SOS' | 'Incident' | 'OfficerPatrolScan') => {
+    navigation.navigate('Patrols', { screen });
+  };
+
+  const goSignIn = () => {
+    rootNav.navigate('Auth');
+  };
+
+  const confirmSignOut = () => {
+    Alert.alert('Sign out', 'End your officer session on this device?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign out',
+        style: 'destructive',
+        onPress: () => {
+          signOut();
+        },
+      },
+    ]);
+  };
+
+  const toggleFlashlight = useCallback(async () => {
+    if (!torchOn && !permission?.granted) {
+      const result = await requestPermission();
+      if (!result.granted) {
+        Alert.alert('Camera required', 'Camera access is needed to use the flashlight.');
+        return;
+      }
+    }
+    setTorchOn((prev) => !prev);
+  }, [torchOn, permission?.granted, requestPermission]);
+
+  const handleAction = (action: LandingAction['key']) => {
+    switch (action) {
+      case 'sos':
+        goPatrolScreen('SOS');
+        break;
+      case 'incident':
+        goPatrolScreen('Incident');
+        break;
+      case 'patrol':
+        goPatrolScreen('OfficerPatrolScan');
+        break;
+      case 'flashlight':
+        void toggleFlashlight();
+        break;
+      default:
+        break;
+    }
+  };
+
+  const actionCards = useMemo(
+    () =>
+      LANDING_ACTIONS.map((action) => {
+        if (action.key === 'flashlight') {
+          return {
+            ...action,
+            label: torchOn ? 'Flashlight on' : 'Flashlight off',
+            sublabel: torchOn ? 'Tap to turn light off' : 'Tap to turn light on',
+            icon: (torchOn ? 'flash' : 'flash-off-outline') as keyof typeof Ionicons.glyphMap,
+          };
+        }
+        return action;
+      }),
+    [torchOn]
+  );
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      <View style={styles.topBar}>
-        <View>
-          <Text style={styles.dashTitle}>Dashboard</Text>
-          <Text style={styles.subline} accessibilityLabel="Last updated time">
-            {updated}
+    <View style={styles.root}>
+      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+        <View style={styles.headerLeft}>
+          <Text style={styles.headerGreeting}>
+            {officer ? `Hello, ${firstName}` : 'AEGIS Patrol'}
+          </Text>
+          <Text style={styles.headerMeta}>
+            {officer?.name ??
+              (deviceBinding
+                ? `Device ${deviceBinding.deviceId} · IMEI ${deviceBinding.imeiNumber}`
+                : 'Field operations')}
           </Text>
         </View>
-        <View style={styles.topIcons}>
-          <Pressable accessibilityLabel="Notifications" accessibilityRole="button">
-            <Ionicons name="notifications-outline" size={24} color={colors.textOnDark} />
-          </Pressable>
+        {officer ? (
           <Pressable
-            accessibilityLabel="Profile and appearance"
+            style={styles.iconBtn}
+            onPress={confirmSignOut}
             accessibilityRole="button"
-            onPress={() => rootNavigationRef.navigate('Profile')}
-            style={{ marginLeft: 16 }}
+            accessibilityLabel="Sign out"
           >
-            <Ionicons name="person-circle-outline" size={26} color={colors.textOnDark} />
+            <Ionicons name="log-out-outline" size={22} color={colors.headerText} />
           </Pressable>
-        </View>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {!officer ? (
+        ) : (
           <Pressable
-            style={styles.bindBanner}
-            onPress={() => rootNavigationRef.navigate('Profile')}
+            style={styles.iconBtn}
+            onPress={goSignIn}
             accessibilityRole="button"
-            accessibilityLabel="No officer bound. Open profile to bind device."
+            accessibilityLabel="Sign in"
           >
-            <Ionicons name="information-circle-outline" size={22} color={colors.primary} />
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={styles.bindTitle}>No officer bound</Text>
-              <Text style={styles.bindSub}>Open Profile to sign in on this device.</Text>
-            </View>
-            <Text style={styles.bindCta}>Profile ›</Text>
-          </Pressable>
-        ) : null}
-
-        {sosBroadcasting && (
-          <Pressable
-            style={styles.sosBanner}
-            onPress={() => navigation.navigate('Patrols', { screen: 'SOSActive' })}
-            accessibilityRole="button"
-            accessibilityLabel="Active SOS alert. Tap to view."
-          >
-            <Ionicons name="warning" size={20} color="#fff" />
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={styles.sosTitle}>ACTIVE SOS ALERT</Text>
-              <Text style={styles.sosSub}>
-                {officer?.name ?? 'Officer'} — broadcasting location
-              </Text>
-            </View>
-            <Text style={styles.sosView}>View</Text>
+            <Ionicons name="person-outline" size={22} color={colors.headerText} />
           </Pressable>
         )}
+      </View>
 
-        <Text style={styles.sectionTitle}>Facility Overview</Text>
-        <View style={styles.segment}>
-          <Pressable
-            style={[styles.segBtn, range === 'today' && styles.segOn]}
-            onPress={() => setRange('today')}
-            accessibilityRole="button"
-            accessibilityState={{ selected: range === 'today' }}
-          >
-            <Text style={[styles.segTxt, range === 'today' && styles.segTxtOn]}>Today</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.segBtn, range === 'week' && styles.segOn]}
-            onPress={() => setRange('week')}
-            accessibilityRole="button"
-            accessibilityState={{ selected: range === 'week' }}
-          >
-            <Text style={[styles.segTxt, range === 'week' && styles.segTxtOn]}>This Week</Text>
-          </Pressable>
-        </View>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
+        {apiError ? (
+          <View style={[ui.alertError, styles.sectionGap]}>
+            <Text style={ui.alertErrorText}>{apiError}</Text>
+          </View>
+        ) : null}
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardsRow}>
-          <View style={styles.statCard}>
-            <Ionicons name="shield-checkmark" size={22} color={colors.primary} />
-            <Text style={styles.statNum}>14</Text>
-            <Text style={styles.statLbl}>ACTIVE PATROLS</Text>
+        {!officer ? (
+          <View style={[ui.card, styles.sectionGap]}>
+            <Text style={styles.cardTitle}>Officer sign-in</Text>
+            <Text style={ui.subtitle}>
+              This device is registered. Sign in to load your patrol route and assignments.
+            </Text>
+            <Pressable style={[ui.btnPrimary, styles.signInBtn]} onPress={goSignIn}>
+              <Text style={ui.btnPrimaryText}>Sign in</Text>
+            </Pressable>
           </View>
-          <View style={styles.statCard}>
-            <Ionicons name="alert-circle" size={22} color={colors.danger} />
-            <Text style={styles.statNum}>03</Text>
-            <Text style={styles.statLbl}>OPEN VIOLATIONS</Text>
-            <View style={styles.badgePlus}>
-              <Text style={styles.badgePlusTxt}>+1</Text>
-            </View>
-          </View>
-          <View style={styles.statCard}>
-            <Ionicons name="checkmark-done" size={22} color={colors.success} />
-            <Text style={styles.statNum}>94</Text>
-            <Text style={styles.statLbl}>COMPLETED</Text>
-          </View>
-        </ScrollView>
+        ) : null}
 
-        <View style={styles.mapCard}>
-          <View style={styles.mapHeader}>
-            <Ionicons name="location" size={16} color={colors.primary} />
-            <Text style={styles.mapBadge}>LIVE COVERAGE: 85%</Text>
-          </View>
-          <View style={[styles.mapBody, { backgroundColor: colors.surface }]}>
-            <View style={styles.mapPulse} />
-            <View style={styles.mapFab}>
-              <Text style={styles.mapFabTxt}>+</Text>
-            </View>
-            <View style={[styles.mapFab, styles.mapFabMinus]}>
-              <Text style={styles.mapFabTxt}>−</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.sessionsHeader}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Ionicons name="people" size={18} color={colors.textOnDark} />
-            <Text style={styles.sectionTitle}>Active Sessions</Text>
-          </View>
-          <Pressable onPress={() => navigation.navigate('Patrols', { screen: 'PatrolHome' })}>
-            <Text style={styles.viewAll}>View All</Text>
-          </Pressable>
-        </View>
-
-        {activeRows.map((row) => (
-          <View key={row.id} style={styles.sessionCard}>
-            <View style={styles.avatarCol}>
-              <View style={styles.avatar}>
-                <Ionicons name="person" size={22} color={colors.primary} />
+        <Text style={styles.landingTitle}>Quick actions</Text>
+        <View style={styles.actionGrid}>
+          {actionCards.map((action) => (
+            <Pressable
+              key={action.key}
+              style={[
+                styles.actionCard,
+                action.tone === 'danger' && styles.actionCardDanger,
+                action.tone === 'primary' && styles.actionCardPrimary,
+                action.key === 'flashlight' && torchOn && styles.actionCardTorchOn,
+              ]}
+              onPress={() => handleAction(action.key)}
+              accessibilityRole="button"
+              accessibilityLabel={action.label}
+            >
+              <View
+                style={[
+                  styles.actionIconWrap,
+                  action.tone === 'danger' && styles.actionIconDanger,
+                  action.tone === 'primary' && styles.actionIconPrimary,
+                ]}
+              >
+                <Ionicons
+                  name={action.icon}
+                  size={28}
+                  color={
+                    action.tone === 'danger'
+                      ? colors.danger
+                      : action.tone === 'primary'
+                        ? colors.primary
+                        : torchOn
+                          ? colors.warning
+                          : colors.textMuted
+                  }
+                />
               </View>
-              {row.self && <View style={styles.liveDot} />}
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.sessionName}>{row.name}</Text>
-              <Text style={styles.sessionArea}>{row.area}</Text>
-              <View style={styles.pBarTrack}>
-                <View style={[styles.pBarFill, { width: `${Math.round(row.progress * 100)}%` }]} />
-              </View>
-              <View style={styles.sessionFooter}>
-                <Text style={styles.details}>Details ›</Text>
-              </View>
-            </View>
-            <View style={styles.pillOutline} />
-          </View>
-        ))}
+              <Text
+                style={[
+                  styles.actionLabel,
+                  action.tone === 'danger' && styles.actionLabelDanger,
+                ]}
+              >
+                {action.label}
+              </Text>
+              <Text style={styles.actionSub}>{action.sublabel}</Text>
+            </Pressable>
+          ))}
+        </View>
       </ScrollView>
+
+      {torchOn && permission?.granted ? (
+        <CameraView
+          style={styles.hiddenTorchCamera}
+          facing="back"
+          enableTorch
+        />
+      ) : null}
     </View>
   );
 }
 
-function createStyles(c: ThemeColors, cardW: number) {
+function createStyles(c: ThemeColors) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: c.bg },
-    topBar: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      paddingHorizontal: 20,
-      paddingVertical: 14,
-    },
-    dashTitle: { color: c.textOnDark, fontSize: 28, fontWeight: '800' },
-    subline: { color: c.textMuted, fontSize: 12, marginTop: 4, fontVariant: ['tabular-nums'] },
-    topIcons: { flexDirection: 'row', alignItems: 'center' },
-    scroll: { paddingHorizontal: 20, paddingBottom: 32 },
-    bindBanner: {
+    header: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: c.primarySoft,
-      padding: 14,
-      borderRadius: 12,
-      marginBottom: 16,
-      borderWidth: 1,
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.lg,
+      backgroundColor: c.headerBg,
+    },
+    headerLeft: { flex: 1 },
+    headerGreeting: {
+      ...typography.titleSm,
+      color: c.headerText,
+    },
+    headerMeta: {
+      ...typography.caption,
+      color: 'rgba(255,255,255,0.8)',
+      marginTop: 2,
+    },
+    iconBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(255,255,255,0.12)',
+    },
+    scroll: {
+      padding: spacing.lg,
+      paddingBottom: spacing.xxxl,
+    },
+    sectionGap: { marginBottom: spacing.lg },
+    cardTitle: {
+      ...typography.titleSm,
+      color: c.textOnCard,
+      marginBottom: spacing.xs,
+    },
+    signInBtn: { marginTop: spacing.md },
+    landingTitle: {
+      ...typography.label,
+      color: c.textMuted,
+      marginBottom: spacing.md,
+      textTransform: 'uppercase',
+      letterSpacing: 0.6,
+    },
+    actionGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.md,
+    },
+    actionCard: {
+      width: '47%',
+      minHeight: 148,
+      backgroundColor: c.card,
+      borderRadius: radius.lg,
+      padding: spacing.lg,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: c.border,
-    },
-    bindTitle: { color: c.textOnDark, fontWeight: '800', fontSize: 14 },
-    bindSub: { color: c.textMuted, fontSize: 13, marginTop: 2 },
-    bindCta: { color: c.primary, fontWeight: '700', fontSize: 14 },
-    sosBanner: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: c.danger,
-      padding: 14,
-      borderRadius: 12,
-      marginBottom: 20,
-    },
-    sosTitle: { color: '#fff', fontWeight: '800', fontSize: 12, letterSpacing: 0.5 },
-    sosSub: { color: 'rgba(255,255,255,0.9)', fontSize: 13, marginTop: 2 },
-    sosView: { color: '#fff', fontWeight: '700', fontSize: 14 },
-    sectionTitle: { color: c.textOnDark, fontSize: 18, fontWeight: '700' },
-    segment: {
-      flexDirection: 'row',
-      backgroundColor: c.bgElevated,
-      borderRadius: 10,
-      padding: 4,
-      marginTop: 12,
-      marginBottom: 16,
-    },
-    segBtn: { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: 'center' },
-    segOn: { backgroundColor: c.primary },
-    segTxt: { color: c.textMuted, fontWeight: '600', fontSize: 14 },
-    segTxtOn: { color: '#fff' },
-    cardsRow: { gap: 12, paddingVertical: 4 },
-    statCard: {
-      width: cardW,
-      backgroundColor: c.card,
-      borderRadius: 16,
-      padding: 14,
-      position: 'relative',
-    },
-    statNum: { fontSize: 26, fontWeight: '800', color: c.textOnCard, marginTop: 8 },
-    statLbl: { fontSize: 10, color: c.textMutedOnCard, fontWeight: '700', marginTop: 4, letterSpacing: 0.3 },
-    badgePlus: {
-      position: 'absolute',
-      top: 10,
-      right: 10,
-      backgroundColor: '#FEE2E2',
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: 6,
-    },
-    badgePlusTxt: { color: c.danger, fontSize: 11, fontWeight: '800' },
-    mapCard: {
-      backgroundColor: c.card,
-      borderRadius: 16,
-      overflow: 'hidden',
-      marginTop: 8,
-      marginBottom: 22,
-      minHeight: 200,
-    },
-    mapHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      padding: 12,
-      backgroundColor: c.cardSecondary,
-    },
-    mapBadge: { fontSize: 11, fontWeight: '800', color: c.textOnCard, letterSpacing: 0.3 },
-    mapBody: {
-      flex: 1,
-      minHeight: 160,
-      position: 'relative',
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    mapPulse: {
-      width: 18,
-      height: 18,
-      borderRadius: 9,
-      backgroundColor: c.danger,
-      opacity: 0.9,
-    },
-    mapFab: {
-      position: 'absolute',
-      bottom: 12,
-      right: 12,
-      width: 36,
-      height: 36,
-      borderRadius: 8,
-      backgroundColor: c.card,
-      alignItems: 'center',
-      justifyContent: 'center',
-      shadowOpacity: 0.15,
-      shadowRadius: 4,
-      elevation: 3,
-    },
-    mapFabMinus: { bottom: 54 },
-    mapFabTxt: { fontSize: 20, fontWeight: '600', color: c.textOnCard },
-    sessionsHeader: {
-      flexDirection: 'row',
       justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 12,
     },
-    viewAll: { color: c.primaryLight, fontWeight: '700', fontSize: 14 },
-    sessionCard: {
-      flexDirection: 'row',
-      backgroundColor: c.card,
-      borderRadius: 16,
-      padding: 14,
-      marginBottom: 12,
-      gap: 12,
+    actionCardDanger: {
+      borderColor: 'rgba(239,68,68,0.35)',
+      backgroundColor: 'rgba(239,68,68,0.08)',
     },
-    avatarCol: { position: 'relative' },
-    avatar: {
+    actionCardPrimary: {
+      borderColor: 'rgba(59,130,246,0.25)',
+    },
+    actionCardTorchOn: {
+      borderColor: 'rgba(245,158,11,0.45)',
+      backgroundColor: 'rgba(245,158,11,0.08)',
+    },
+    actionIconWrap: {
       width: 48,
       height: 48,
-      borderRadius: 24,
-      backgroundColor: c.primarySoft,
+      borderRadius: radius.md,
+      backgroundColor: c.bgElevated,
       alignItems: 'center',
       justifyContent: 'center',
+      marginBottom: spacing.md,
     },
-    liveDot: {
+    actionIconDanger: {
+      backgroundColor: 'rgba(239,68,68,0.15)',
+    },
+    actionIconPrimary: {
+      backgroundColor: c.primarySoft,
+    },
+    actionLabel: {
+      ...typography.titleSm,
+      color: c.textOnCard,
+    },
+    actionLabelDanger: {
+      color: c.danger,
+    },
+    actionSub: {
+      ...typography.caption,
+      color: c.textMutedOnCard,
+      marginTop: spacing.xs,
+      lineHeight: 18,
+    },
+    hiddenTorchCamera: {
       position: 'absolute',
+      width: 1,
+      height: 1,
+      opacity: 0,
       bottom: 0,
       right: 0,
-      width: 12,
-      height: 12,
-      borderRadius: 6,
-      backgroundColor: c.success,
-      borderWidth: 2,
-      borderColor: c.card,
-    },
-    sessionName: { fontSize: 16, fontWeight: '800', color: c.textOnCard },
-    sessionArea: { fontSize: 13, color: c.textMutedOnCard, marginTop: 2 },
-    pBarTrack: {
-      height: 6,
-      backgroundColor: c.borderLight,
-      borderRadius: 3,
-      marginTop: 12,
-      overflow: 'hidden',
-    },
-    pBarFill: { height: '100%', backgroundColor: c.primary, borderRadius: 3 },
-    sessionFooter: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 10 },
-    details: { color: c.primary, fontWeight: '700', fontSize: 13 },
-    pillOutline: {
-      width: 36,
-      height: 22,
-      borderRadius: 999,
-      borderWidth: 1,
-      borderColor: c.borderLight,
-      alignSelf: 'center',
     },
   });
 }

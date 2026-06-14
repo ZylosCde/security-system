@@ -33,7 +33,7 @@ export function SOSActiveScreen() {
         style: 'destructive',
         onPress: () => {
           cancelSOS();
-          navigation.popToTop();
+          navigation.navigate('Main' as any, { screen: 'Home' });
         },
       },
     ]);

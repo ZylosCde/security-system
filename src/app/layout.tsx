@@ -5,6 +5,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { PatrolProvider } from "@/hooks/usePatrolStore";
 import { ThemeProvider } from "@/components/theme-provider";
+import { AuthProvider } from "@/context/AuthContext";
+import { RouteGuard } from "@/components/route-guard";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,7 +40,11 @@ export default function RootLayout({
       <body className="min-h-dvh flex flex-col bg-background text-foreground">
         <ThemeProvider>
           <TooltipProvider>
-            <PatrolProvider>{children}</PatrolProvider>
+            <AuthProvider>
+              <PatrolProvider>
+                <RouteGuard>{children}</RouteGuard>
+              </PatrolProvider>
+            </AuthProvider>
             <Toaster position="top-center" richColors closeButton />
           </TooltipProvider>
         </ThemeProvider>

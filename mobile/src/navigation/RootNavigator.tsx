@@ -1,20 +1,32 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { NavigationContainer, DarkTheme, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { RootStackParamList } from './types';
 import { rootNavigationRef } from './rootNavigationRef';
 import { MainTabNavigator } from './MainTabNavigator';
 import { AuthScreen } from '../screens/AuthScreen';
-import { ScanOfficerScreen } from '../screens/ScanOfficerScreen';
 import { OfficerBindScreen } from '../screens/OfficerBindScreen';
+import { ScanAuthQrScreen } from '../screens/ScanAuthQrScreen';
 import { SplashScreen } from '../screens/SplashScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { useAppTheme } from '../context/ThemeContext';
+import { usePatrol } from '../context/PatrolContext';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
   const { colors, isDark } = useAppTheme();
+  const { sosBroadcasting } = usePatrol();
+
+  useEffect(() => {
+    if (sosBroadcasting && rootNavigationRef.isReady()) {
+      rootNavigationRef.navigate('Main', {
+        screen: 'Patrols',
+        params: { screen: 'SOSActive' }
+      });
+    }
+  }, [sosBroadcasting]);
+
   const navTheme = useMemo(
     () => ({
       ...(isDark ? DarkTheme : DefaultTheme),
@@ -43,7 +55,7 @@ export function RootNavigator() {
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="Main" component={MainTabNavigator} />
         <Stack.Screen name="Auth" component={AuthScreen} />
-        <Stack.Screen name="ScanOfficer" component={ScanOfficerScreen} />
+        <Stack.Screen name="ScanAuthQr" component={ScanAuthQrScreen} />
         <Stack.Screen name="OfficerBind" component={OfficerBindScreen} />
         <Stack.Screen
           name="Profile"
@@ -51,9 +63,9 @@ export function RootNavigator() {
           options={{
             headerShown: true,
             title: 'Profile',
-            headerStyle: { backgroundColor: colors.bgElevated },
-            headerTintColor: colors.textOnDark,
-            headerTitleStyle: { fontWeight: '700' },
+            headerStyle: { backgroundColor: colors.headerBg },
+            headerTintColor: colors.headerText,
+            headerTitleStyle: { fontWeight: '600', fontSize: 17 },
             headerShadowVisible: false,
           }}
         />

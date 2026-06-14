@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import type { PatrolStackParamList } from '../navigation/types';
 import type { ThemeColors } from '../theme/colors';
 import { useAppTheme } from '../context/ThemeContext';
@@ -24,6 +25,16 @@ const TYPES = [
   'Equipment Failure',
   'Other',
 ] as const;
+
+const ICON_MAP: Record<typeof TYPES[number], keyof typeof Ionicons.glyphMap> = {
+  'Trespasser': 'walk-outline',
+  'Theft': 'cash-outline',
+  'Fire': 'flame-outline',
+  'Injury': 'medkit-outline',
+  'Suspicious Activity': 'eye-outline',
+  'Equipment Failure': 'build-outline',
+  'Other': 'help-circle-outline',
+};
 
 type Nav = NativeStackNavigationProp<PatrolStackParamList, 'Incident'>;
 
@@ -61,11 +72,27 @@ export function IncidentScreen() {
       </View>
 
       <Text style={styles.label}>Type</Text>
-      {TYPES.map((t) => (
-        <Pressable key={t} style={[styles.typeRow, type === t && styles.typeRowOn]} onPress={() => setType(t)}>
-          <Text style={styles.typeText}>{t}</Text>
-        </Pressable>
-      ))}
+      <View style={styles.typeGrid}>
+        {TYPES.map((t) => {
+          const iconName = ICON_MAP[t as keyof typeof ICON_MAP];
+          const isSelected = type === t;
+          return (
+            <Pressable
+              key={t}
+              style={[styles.gridItem, isSelected && styles.gridItemOn]}
+              onPress={() => setType(t)}
+            >
+              <Ionicons
+                name={iconName}
+                size={30}
+                color={isSelected ? colors.primaryLight : colors.textMuted}
+                style={{ marginBottom: 6 }}
+              />
+              <Text style={[styles.gridText, isSelected && styles.gridTextOn]}>{t}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
 
       <Text style={styles.label}>Description</Text>
       <TextInput
@@ -91,7 +118,7 @@ function createStyles(c: ThemeColors) {
   return StyleSheet.create({
     root: { padding: 20, backgroundColor: c.bg, paddingBottom: 40 },
     label: { color: c.textMuted, fontSize: 12, letterSpacing: 1, marginTop: 16, marginBottom: 10 },
-    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
     chip: {
       paddingHorizontal: 14,
       paddingVertical: 8,
@@ -102,16 +129,37 @@ function createStyles(c: ThemeColors) {
     chipOn: { borderColor: c.success, backgroundColor: 'rgba(16, 185, 129, 0.12)' },
     chipText: { color: c.textMuted, fontWeight: '600' },
     chipTextOn: { color: c.success },
-    typeRow: {
-      padding: 14,
-      borderRadius: 12,
+    typeGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      gap: 10,
+    },
+    gridItem: {
+      width: '48%',
+      aspectRatio: 1.3,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderRadius: 16,
       borderWidth: 1,
       borderColor: c.border,
-      marginBottom: 8,
       backgroundColor: c.bgElevated,
+      padding: 8,
+      marginBottom: 8,
     },
-    typeRowOn: { borderColor: c.primaryLight, backgroundColor: c.primarySoft },
-    typeText: { color: c.textOnDark, fontSize: 15 },
+    gridItemOn: {
+      borderColor: c.primaryLight,
+      backgroundColor: c.primarySoft,
+    },
+    gridText: {
+      color: c.textMuted,
+      fontSize: 12,
+      fontWeight: '600',
+      textAlign: 'center',
+    },
+    gridTextOn: {
+      color: c.primaryLight,
+    },
     area: {
       minHeight: 100,
       backgroundColor: c.bgElevated,
@@ -122,6 +170,7 @@ function createStyles(c: ThemeColors) {
       color: c.textOnDark,
       fontSize: 15,
       textAlignVertical: 'top',
+      marginTop: 8,
     },
     primary: {
       marginTop: 24,

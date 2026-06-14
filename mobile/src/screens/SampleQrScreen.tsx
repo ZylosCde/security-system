@@ -15,13 +15,15 @@ import * as Sharing from 'expo-sharing';
 import type { ThemeColors } from '../theme/colors';
 import { useAppTheme } from '../context/ThemeContext';
 import { usePatrol } from '../context/PatrolContext';
-import { generateRotatingToken } from '../lib/qrService';
+import { buildCheckpointQrValue } from '../lib/qrService';
 
 export function SampleQrScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { checkpoints } = usePatrol();
+  const { checkpoints, route, siteId } = usePatrol();
   const qrRefs = useRef<Record<string, View | null>>({});
+
+  const routeCheckpoints = checkpoints.filter((cp) => route.checkpoints.includes(cp.id));
 
   const shareQr = async (checkpointId: string, name: string) => {
     const node = qrRefs.current[checkpointId];
@@ -50,15 +52,28 @@ export function SampleQrScreen() {
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.scroll}>
       <Text style={styles.intro}>
-        Scan these codes during a patrol session. Tokens rotate every 24 hours — refresh this screen
-        for today&apos;s codes.
+        These QR codes match the web officer app format ({route.name}). Scan them during an
+        active patrol — the server validates order and rejects duplicates.
       </Text>
-      {checkpoints.map((cp) => {
-        const token = generateRotatingToken(cp.id, cp.premises);
+      {routeCheckpoints.length === 0 ? (
+        <Text style={styles.empty}>No checkpoints on your route yet.</Text>
+      ) : null}
+      {routeCheckpoints.map((cp) => {
+        const token =
+          siteId != null
+            ? buildCheckpointQrValue({
+                id: cp.id,
+                code: cp.code ?? cp.qrToken,
+                name: cp.name,
+                siteId,
+              })
+            : (cp.code ?? cp.qrToken);
         return (
           <View key={cp.id} style={styles.card}>
             <Text style={styles.cardTitle}>{cp.name}</Text>
-            <Text style={styles.cardSub}>{cp.premises} · {cp.id}</Text>
+            <Text style={styles.cardSub}>
+              {cp.premises} · Order {cp.routeOrder ?? '—'}
+            </Text>
             <View
               style={styles.qrWrap}
               ref={(r) => {
@@ -94,17 +109,18 @@ function createStyles(c: ThemeColors) {
     root: { flex: 1, backgroundColor: c.bg },
     scroll: { padding: 20, paddingBottom: 48 },
     intro: { color: c.textMuted, fontSize: 14, lineHeight: 21, marginBottom: 20 },
+    empty: { color: c.textMuted, fontSize: 15, textAlign: 'center', marginVertical: 24 },
     card: {
-      backgroundColor: c.bgElevated,
-      borderRadius: 16,
-      borderWidth: 1,
+      backgroundColor: c.card,
+      borderRadius: 12,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: c.border,
       padding: 20,
       marginBottom: 16,
       alignItems: 'center',
     },
-    cardTitle: { color: c.textOnDark, fontSize: 18, fontWeight: '800' },
-    cardSub: { color: c.textMuted, fontSize: 13, marginTop: 4, marginBottom: 16 },
+    cardTitle: { color: c.textOnCard, fontSize: 17, fontWeight: '600' },
+    cardSub: { color: c.textMutedOnCard, fontSize: 13, marginTop: 4, marginBottom: 16 },
     qrWrap: {
       padding: 16,
       backgroundColor: '#fff',
@@ -124,7 +140,7 @@ function createStyles(c: ThemeColors) {
       paddingVertical: 12,
       borderRadius: 12,
     },
-    shareBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+    shareBtnText: { color: c.onPrimary, fontWeight: '600', fontSize: 15 },
     webNote: { color: c.textMuted, fontSize: 12, textAlign: 'center', marginTop: 8 },
   });
 }

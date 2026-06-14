@@ -7,6 +7,8 @@ export interface Checkpoint {
   lat: number;
   lng: number;
   qrToken: string;
+  code?: string;
+  routeOrder?: number;
 }
 
 export interface Route {
@@ -20,6 +22,7 @@ export interface Officer {
   id: string;
   name: string;
   nic: string;
+  position?: 'JPO' | 'SPO';
   status: 'on-duty' | 'off-duty' | 'on-break';
 }
 

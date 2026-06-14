@@ -28,8 +28,36 @@ export const routes: Route[] = [
 ];
 
 export const schedules: Schedule[] = [
-  { id: 'S-001', routeId: 'R-01', officerId: 'O-101', startTime: '2026-05-12T22:00:00Z', endTime: '2026-05-13T06:00:00Z', recurrence: 'Daily', status: 'active' },
-  { id: 'S-002', routeId: 'R-02', officerId: 'O-102', startTime: '2026-05-12T22:15:00Z', endTime: '2026-05-13T05:00:00Z', recurrence: 'Daily', status: 'active' },
+  {
+    id: 'S-001',
+    siteId: 1,
+    siteName: 'VISTA Towers',
+    routeId: 'R-01',
+    officerId: 'O-101',
+    startTime: '2026-05-12T22:00:00.000Z',
+    endTime: '2026-05-13T06:00:00.000Z',
+    frequencyIntervalMinutes: 120,
+    recurrence: 'Every 2 hours',
+    status: 'active',
+    version: 1,
+    createdAt: '2026-05-01T08:00:00.000Z',
+    updatedAt: '2026-05-01T08:00:00.000Z',
+  },
+  {
+    id: 'S-002',
+    siteId: 2,
+    siteName: 'Harbour Logistics',
+    routeId: 'R-02',
+    officerId: 'O-102',
+    startTime: '2026-05-12T22:15:00.000Z',
+    endTime: '2026-05-13T05:00:00.000Z',
+    frequencyIntervalMinutes: 60,
+    recurrence: 'Every hour',
+    status: 'active',
+    version: 1,
+    createdAt: '2026-05-01T08:00:00.000Z',
+    updatedAt: '2026-05-01T08:00:00.000Z',
+  },
 ];
 
 export const activeSessions: PatrolSession[] = [

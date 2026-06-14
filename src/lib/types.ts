@@ -37,6 +37,9 @@ export interface Checkpoint {
   lng: number;
   qrToken: string;
   lastScanned?: string;
+  code?: string;
+  routeOrder?: number;
+  siteId?: number;
 }
 
 export interface Route {
@@ -47,14 +50,46 @@ export interface Route {
   recurrence: string;
 }
 
+export type ScheduleStatus = 'active' | 'paused' | 'archived';
+
+export type ScheduleFrequencyPreset =
+  | 'hourly'
+  | 'every-2h'
+  | 'every-4h'
+  | 'every-6h'
+  | 'daily';
+
 export interface Schedule {
   id: string;
+  siteId: number;
+  siteName?: string;
   routeId: string;
-  officerId: string;
+  officerId?: string;
   startTime: string;
   endTime: string;
+  frequencyIntervalMinutes: number;
   recurrence: string;
-  status: 'active' | 'paused';
+  status: ScheduleStatus;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ScheduleHistory {
+  id: string;
+  scheduleId: string;
+  version: number;
+  siteId: number;
+  siteName?: string;
+  routeId: string;
+  officerId?: string;
+  startTime: string;
+  endTime: string;
+  frequencyIntervalMinutes: number;
+  recurrence: string;
+  status: Exclude<ScheduleStatus, 'archived'>;
+  archivedAt: string;
+  changeReason: 'renew' | 'edit' | 'deactivate';
 }
 
 export interface PatrolSession {
@@ -69,6 +104,10 @@ export interface PatrolSession {
   totalCheckpoints: number;
   currentLocation?: { lat: number; lng: number };
   violations: number;
+  officerName?: string;
+  siteName?: string;
+  deviceName?: string;
+  progressPercent?: number;
 }
 
 export interface ScanEvent {

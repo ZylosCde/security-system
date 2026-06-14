@@ -1,281 +1,278 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Modal, ScrollView, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  TextInput,
+  ActivityIndicator,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
-import QRCode from 'react-native-qrcode-svg';
 import type { RootStackParamList } from '../navigation/types';
 import type { ThemeColors } from '../theme/colors';
-import { formatImeiDisplay } from '../theme/fieldTheme';
+import { spacing, radius } from '../theme/spacing';
+import { typography } from '../theme/typography';
 import { useAppTheme } from '../context/ThemeContext';
 import { usePatrol } from '../context/PatrolContext';
-import { generateOfficerToken } from '../lib/qrService';
+import { BASE_URL } from '../lib/api-client';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Auth'>;
-
-const cornerSize = 28;
-const cornerThick = 3;
 
 export function AuthScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
-  const { colors } = useAppTheme();
+  const { colors, ui } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { deviceId, officers } = usePatrol();
-  const [testQrVisible, setTestQrVisible] = useState(false);
-  const imeiLabel = formatImeiDisplay(deviceId);
+  const { deviceBinding, loginWithNIC, apiError } = usePatrol();
+  const [nic, setNic] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const version =
     Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? 'dev';
 
-  const testOfficer = officers.find((o) => o.status !== 'off-duty') ?? officers[0];
-  const testToken = testOfficer ? generateOfficerToken(testOfficer.id) : '';
+  const handleLogin = async () => {
+    setSubmitting(true);
+    setError(null);
+    const res = await loginWithNIC(nic);
+    setSubmitting(false);
+    if (!res.ok) {
+      setError(res.message);
+      return;
+    }
+    navigation.replace('Main');
+  };
+
+  const deviceBound = deviceBinding != null;
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top + 12 }]}>
-      <View style={styles.hero}>
-        <View style={styles.shieldWrap}>
-          <Ionicons name="shield-checkmark" size={40} color="#fff" />
+    <KeyboardAvoidingView
+      style={styles.root}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+        <View style={styles.logoWrap}>
+          <Ionicons name="shield-checkmark" size={28} color={colors.onPrimary} />
         </View>
-        <View style={styles.idPill}>
-          <Ionicons name="hardware-chip-outline" size={14} color={colors.primaryLight} />
-          <Text style={styles.idPillText}>ID: {imeiLabel}</Text>
-        </View>
-        <View style={styles.okPill}>
-          <Ionicons name="checkmark-circle" size={14} color={colors.success} />
-          <Text style={styles.okPillText}>DEVICE REGISTERED</Text>
-        </View>
-        <Text style={styles.title}>Authentication Required</Text>
-        <Text style={styles.sub}>
-          Scan your officer ID card or QR code to bind your session to this device.
-        </Text>
+        <Text style={styles.headerTitle}>Officer App</Text>
+        <Text style={styles.headerSub}>Sign in to start patrols</Text>
       </View>
 
-      <View style={styles.scanFrame}>
-        <View style={[styles.corner, styles.tl]} />
-        <View style={[styles.corner, styles.tr]} />
-        <View style={[styles.corner, styles.bl]} />
-        <View style={[styles.corner, styles.br]} />
-        <View style={styles.camCircle}>
-          <Ionicons name="camera" size={36} color="#fff" />
-        </View>
-        <Pressable style={styles.readyBtn} onPress={() => navigation.navigate('ScanOfficer')}>
-          <Text style={styles.readyBtnText}>READY TO SCAN</Text>
-        </Pressable>
-      </View>
-
-      <Pressable onPress={() => navigation.navigate('OfficerBind')}>
-        <Text style={styles.manualLink}>Enter ID manually</Text>
-      </Pressable>
-
-      <Pressable onPress={() => setTestQrVisible(true)}>
-        <Text style={styles.testLink}>Get test login QR</Text>
-      </Pressable>
-
-      <View style={{ flex: 1 }} />
-
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
-        <View style={styles.footerRow}>
-          <Ionicons name="help-circle-outline" size={16} color={colors.textMuted} />
-          <Text style={styles.footerMuted}>Support</Text>
-        </View>
-        <Text style={styles.version}>v{version}</Text>
-      </View>
-
-      <Modal
-        visible={testQrVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setTestQrVisible(false)}
+      <ScrollView
+        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + spacing.xl }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, { paddingBottom: insets.bottom + 24 }]}>
-            <Text style={styles.modalTitle}>Test login QR</Text>
-            {testOfficer ? (
-              <ScrollView contentContainerStyle={styles.modalBody}>
-                <Text style={styles.modalOfficer}>{testOfficer.name}</Text>
-                <Text style={styles.modalMeta}>
-                  {testOfficer.id} · {testOfficer.nic}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Welcome</Text>
+          <Text style={styles.cardSub}>
+            Step 1: scan the device QR from admin. Step 2: sign in with your officer ID or NIC.
+          </Text>
+
+          {apiError ? (
+            <View style={[ui.alertError, styles.alertSpacing]}>
+              <Text style={ui.alertErrorText}>{apiError}</Text>
+            </View>
+          ) : null}
+
+          {deviceBound ? (
+            <View style={[styles.infoRow, styles.alertSpacing]}>
+              <Ionicons name="phone-portrait-outline" size={20} color={colors.primary} />
+              <View style={styles.infoText}>
+                <Text style={styles.infoTitle}>Device registered</Text>
+                <Text style={styles.infoSub}>
+                  ID {deviceBinding.deviceId} · IMEI {deviceBinding.imeiNumber}
                 </Text>
-                <View style={styles.qrWrap}>
-                  <QRCode value={testToken} size={200} backgroundColor="#fff" color="#000" />
-                </View>
-                <Text style={styles.tokenLabel} selectable>
-                  {testToken}
-                </Text>
-                <Text style={styles.modalHint}>
-                  For officer login only — not for patrol checkpoint scans. Use Patrol → Test checkpoint QRs
-                  for checkpoint testing.
-                </Text>
-              </ScrollView>
-            ) : (
-              <Text style={styles.modalHint}>No officers available.</Text>
-            )}
-            <Pressable style={styles.modalClose} onPress={() => setTestQrVisible(false)}>
-              <Text style={styles.modalCloseText}>Close</Text>
-            </Pressable>
-          </View>
+              </View>
+            </View>
+          ) : (
+            <View style={[ui.alertWarning, styles.alertSpacing]}>
+              <Text style={ui.alertWarningText}>
+                You must scan the device QR before signing in. The IMEI in the QR must match
+                the device registered in the admin system.
+              </Text>
+            </View>
+          )}
+
+          <Pressable
+            style={ui.btnPrimary}
+            onPress={() => navigation.navigate('ScanAuthQr', { mode: 'device' })}
+          >
+            <Ionicons name="hardware-chip-outline" size={20} color={colors.onPrimary} />
+            <Text style={ui.btnPrimaryText}>
+              {deviceBound ? 'Re-scan device QR' : 'Scan device QR (required)'}
+            </Text>
+          </Pressable>
+
+          {deviceBound ? (
+            <>
+              <Pressable
+                style={[ui.btnSecondary, styles.btnGap]}
+                onPress={() => navigation.navigate('ScanAuthQr', { mode: 'officer' })}
+              >
+                <Ionicons name="qr-code-outline" size={20} color={colors.primary} />
+                <Text style={ui.btnSecondaryText}>Scan officer QR</Text>
+              </Pressable>
+
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>or</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              <Text style={ui.inputLabel}>NIC number</Text>
+              <TextInput
+                style={ui.input}
+                placeholder="e.g. 123456789V"
+                placeholderTextColor={colors.textMuted}
+                value={nic}
+                onChangeText={setNic}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                editable={!submitting}
+              />
+              {error ? <Text style={styles.fieldError}>{error}</Text> : null}
+
+              <Pressable
+                style={[ui.btnPrimary, styles.btnGap, submitting && ui.btnDisabled]}
+                onPress={() => void handleLogin()}
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <ActivityIndicator color={colors.onPrimary} />
+                ) : (
+                  <Text style={ui.btnPrimaryText}>Sign in</Text>
+                )}
+              </Pressable>
+
+              <Pressable
+                style={styles.linkBtn}
+                onPress={() => navigation.navigate('OfficerBind')}
+              >
+                <Text style={styles.linkText}>Manual NIC entry</Text>
+              </Pressable>
+            </>
+          ) : null}
         </View>
-      </Modal>
-    </View>
+
+        <Text style={styles.footerMeta}>
+          {BASE_URL.replace(/^https?:\/\//, '')} · v{version}
+        </Text>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 function createStyles(c: ThemeColors) {
   return StyleSheet.create({
-    root: {
-      flex: 1,
-      backgroundColor: c.bg,
-      paddingHorizontal: 24,
+    root: { flex: 1, backgroundColor: c.bg },
+    header: {
+      backgroundColor: c.headerBg,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.xxl,
+      alignItems: 'center',
     },
-    hero: { alignItems: 'center' },
-    shieldWrap: {
-      width: 88,
-      height: 88,
-      borderRadius: 22,
-      backgroundColor: c.primary,
+    logoWrap: {
+      width: 56,
+      height: 56,
+      borderRadius: radius.lg,
+      backgroundColor: 'rgba(255,255,255,0.15)',
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 16,
+      marginBottom: spacing.md,
     },
-    idPill: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      backgroundColor: c.surface,
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-      borderRadius: 999,
-      marginBottom: 10,
+    headerTitle: {
+      ...typography.title,
+      color: c.headerText,
     },
-    idPillText: { color: c.textOnDark, fontSize: 13, fontWeight: '600', fontVariant: ['tabular-nums'] },
-    okPill: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      marginBottom: 28,
+    headerSub: {
+      ...typography.bodySm,
+      color: 'rgba(255,255,255,0.85)',
+      marginTop: spacing.xs,
     },
-    okPillText: { color: c.success, fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
-    title: {
-      color: c.textOnDark,
-      fontSize: 26,
-      fontWeight: '800',
-      textAlign: 'center',
-      marginBottom: 10,
+    scroll: {
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.lg,
     },
-    sub: {
-      color: c.textMuted,
-      fontSize: 15,
-      lineHeight: 22,
-      textAlign: 'center',
-      maxWidth: 320,
-    },
-    scanFrame: {
-      marginTop: 36,
-      minHeight: 260,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: 'rgba(59, 130, 246, 0.35)',
-      borderStyle: 'dashed',
-      alignItems: 'center',
-      justifyContent: 'center',
-      position: 'relative',
-    },
-    corner: {
-      position: 'absolute',
-      width: cornerSize,
-      height: cornerSize,
-      borderColor: c.primaryLight,
-    },
-    tl: { top: 12, left: 12, borderTopWidth: cornerThick, borderLeftWidth: cornerThick, borderTopLeftRadius: 4 },
-    tr: { top: 12, right: 12, borderTopWidth: cornerThick, borderRightWidth: cornerThick, borderTopRightRadius: 4 },
-    bl: { bottom: 12, left: 12, borderBottomWidth: cornerThick, borderLeftWidth: cornerThick, borderBottomLeftRadius: 4 },
-    br: { bottom: 12, right: 12, borderBottomWidth: cornerThick, borderRightWidth: cornerThick, borderBottomRightRadius: 4 },
-    camCircle: {
-      width: 88,
-      height: 88,
-      borderRadius: 44,
-      backgroundColor: c.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 28,
-    },
-    readyBtn: {
+    card: {
       backgroundColor: c.card,
-      paddingHorizontal: 28,
-      paddingVertical: 14,
-      borderRadius: 999,
+      borderRadius: radius.lg,
+      padding: spacing.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.border,
     },
-    readyBtnText: { color: c.textOnCard, fontWeight: '800', fontSize: 13, letterSpacing: 0.5 },
-    manualLink: {
-      marginTop: 20,
-      textAlign: 'center',
-      color: c.primaryLight,
-      fontSize: 15,
-      fontWeight: '600',
+    cardTitle: {
+      ...typography.titleSm,
+      color: c.textOnCard,
     },
-    testLink: {
-      marginTop: 12,
-      textAlign: 'center',
-      color: c.textMuted,
-      fontSize: 14,
-      fontWeight: '600',
-      textDecorationLine: 'underline',
+    cardSub: {
+      ...typography.bodySm,
+      color: c.textMutedOnCard,
+      marginTop: spacing.xs,
+      marginBottom: spacing.lg,
     },
-    footer: { alignItems: 'center' },
-    footerRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    footerMuted: { color: c.textMuted, fontSize: 13 },
-    version: { color: c.textMuted, fontSize: 11, marginTop: 8, opacity: 0.7 },
-    modalBackdrop: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.65)',
-      justifyContent: 'flex-end',
-    },
-    modalCard: {
-      backgroundColor: c.bgElevated,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      paddingHorizontal: 24,
-      paddingTop: 24,
-      maxHeight: '85%',
-    },
-    modalTitle: {
-      color: c.textOnDark,
-      fontSize: 20,
-      fontWeight: '800',
-      textAlign: 'center',
-      marginBottom: 16,
-    },
-    modalBody: { alignItems: 'center', paddingBottom: 16 },
-    modalOfficer: { color: c.textOnDark, fontSize: 18, fontWeight: '700' },
-    modalMeta: { color: c.textMuted, fontSize: 13, marginTop: 4, marginBottom: 20 },
-    qrWrap: {
-      padding: 16,
-      backgroundColor: '#fff',
-      borderRadius: 12,
-      marginBottom: 16,
-    },
-    tokenLabel: {
-      color: c.textMuted,
-      fontSize: 11,
-      fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-      textAlign: 'center',
-      marginBottom: 12,
-    },
-    modalHint: {
-      color: c.textMuted,
-      fontSize: 14,
-      lineHeight: 20,
-      textAlign: 'center',
-    },
-    modalClose: {
-      backgroundColor: c.primary,
-      paddingVertical: 15,
-      borderRadius: 14,
+    alertSpacing: { marginBottom: spacing.md },
+    infoRow: {
+      flexDirection: 'row',
       alignItems: 'center',
-      marginTop: 8,
+      gap: spacing.md,
+      backgroundColor: c.primarySoft,
+      padding: spacing.md,
+      borderRadius: radius.md,
     },
-    modalCloseText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+    infoText: { flex: 1 },
+    infoTitle: {
+      ...typography.label,
+      color: c.textOnCard,
+    },
+    infoSub: {
+      ...typography.caption,
+      color: c.textMutedOnCard,
+      marginTop: 2,
+    },
+    btnGap: { marginTop: spacing.sm },
+    dividerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      marginVertical: spacing.lg,
+    },
+    dividerLine: {
+      flex: 1,
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: c.divider,
+    },
+    dividerText: {
+      ...typography.caption,
+      color: c.textMuted,
+    },
+    fieldError: {
+      ...typography.bodySm,
+      color: c.danger,
+      marginTop: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    linkBtn: {
+      marginTop: spacing.lg,
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+    },
+    linkText: {
+      ...typography.bodySm,
+      color: c.primary,
+      fontWeight: '600',
+    },
+    footerMeta: {
+      ...typography.caption,
+      color: c.textMuted,
+      textAlign: 'center',
+      marginTop: spacing.lg,
+    },
   });
 }

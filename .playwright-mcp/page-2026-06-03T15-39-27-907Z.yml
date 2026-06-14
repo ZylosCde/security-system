@@ -1,0 +1,31 @@
+- generic [ref=e1]:
+  - generic [ref=e6]:
+    - banner [ref=e7]:
+      - generic [ref=e8]:
+        - paragraph [ref=e9]: Signed in
+        - paragraph [ref=e10]: Ridma Shehan
+      - button "Sign out" [ref=e11]:
+        - img
+    - main [ref=e12]:
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - generic [ref=e15]: SPO
+          - heading "Hello, Ridma" [level=1] [ref=e16]
+          - paragraph [ref=e17]: NIC 123456789012
+          - paragraph [ref=e18]: "Site: test site"
+        - generic [ref=e19]:
+          - generic [ref=e20]:
+            - img [ref=e21]
+            - generic [ref=e24]: Quick actions
+          - paragraph [ref=e25]: Start a patrol by scanning checkpoint QR codes at each location.
+          - button "Start patrolling" [ref=e26]:
+            - img
+            - text: Start patrolling
+    - navigation [ref=e28]:
+      - button "Home" [active] [ref=e29]:
+        - img [ref=e30]
+        - text: Home
+      - button "Patrols" [ref=e33]:
+        - img [ref=e34]
+        - text: Patrols
+  - alert [ref=e5]

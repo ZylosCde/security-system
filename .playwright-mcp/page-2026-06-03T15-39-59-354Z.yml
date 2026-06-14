@@ -1,0 +1,14 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e7]
+      - generic [ref=e9]:
+        - heading "Officer App" [level=1] [ref=e10]
+        - paragraph [ref=e11]: Scan your ID card to sign in
+    - generic [ref=e12]:
+      - paragraph [ref=e13]: Hold your officer ID QR inside the frame.
+      - button "Scan again" [ref=e26]:
+        - img
+        - text: Scan again
+    - paragraph [ref=e27]: Use the QR from Security Officer Registration on the admin dashboard.
+  - alert [ref=e28]

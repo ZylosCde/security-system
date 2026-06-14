@@ -4,9 +4,9 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  FlatList,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, CommonActions } from '@react-navigation/native';
@@ -23,10 +23,9 @@ export function OfficerBindScreen() {
   const navigation = useNavigation<Nav>();
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { officers, bindOfficer } = usePatrol();
+  const { loginWithNIC, deviceBinding } = usePatrol();
   const [nicQuery, setNicQuery] = useState('');
-
-  const onDuty = officers.filter((o) => o.status !== 'off-duty');
+  const [submitting, setSubmitting] = useState(false);
 
   const goMainDashboard = () => {
     navigation.dispatch(
@@ -35,65 +34,68 @@ export function OfficerBindScreen() {
         routes: [
           {
             name: 'Main',
-            state: { routes: [{ name: 'Dashboard' }], index: 0 },
+            state: { routes: [{ name: 'Home' }], index: 0 },
           },
         ],
       })
     );
   };
 
-  const tryBind = (id: string) => {
-    if (bindOfficer(id)) {
-      goMainDashboard();
-    } else {
-      Alert.alert('Unavailable', 'Officer cannot be bound while off duty.');
-    }
-  };
-
-  const tryManual = () => {
-    const q = nicQuery.trim().toLowerCase();
+  const tryManual = async () => {
+    const q = nicQuery.trim();
     if (!q) {
-      Alert.alert('Enter ID', 'Type NIC or company ID.');
+      Alert.alert('Enter NIC', 'Type your national ID (NIC).');
       return;
     }
-    const match = onDuty.find((o) => o.nic.toLowerCase().includes(q) || o.id.toLowerCase() === q);
-    if (match) tryBind(match.id);
-    else Alert.alert('Not found', 'No matching on-duty officer.');
+    setSubmitting(true);
+    const res = await loginWithNIC(q);
+    setSubmitting(false);
+    if (res.ok) {
+      goMainDashboard();
+    } else {
+      Alert.alert('Sign-in failed', res.message);
+    }
   };
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + 8 }]}>
-      <Text style={styles.title}>Bind officer</Text>
-      <Text style={styles.sub}>Select your profile or verify by ID.</Text>
+      <Text style={styles.title}>Sign in with NIC</Text>
+      <Text style={styles.sub}>Your identity is verified against the patrol API.</Text>
 
-      <Text style={styles.section}>ON DUTY</Text>
-      <FlatList
-        style={{ flex: 1 }}
-        data={onDuty}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
-        renderItem={({ item }) => (
-          <Pressable style={styles.row} onPress={() => tryBind(item.id)}>
-            <View>
-              <Text style={styles.name}>{item.name}</Text>
-              <Text style={styles.nic}>{item.nic}</Text>
-            </View>
-            <Text style={styles.chev}>›</Text>
-          </Pressable>
-        )}
-      />
+      {!deviceBinding ? (
+        <Text style={styles.warn}>
+          Register this handset first — scan the device QR on the Auth screen.
+        </Text>
+      ) : null}
 
-      <Text style={styles.section}>MANUAL ID</Text>
+      <Pressable
+        style={[styles.secondary, !deviceBinding && { opacity: 0.5 }]}
+        onPress={() => navigation.navigate('ScanAuthQr', { mode: 'officer' })}
+        disabled={!deviceBinding}
+      >
+        <Text style={styles.secondaryText}>Scan officer QR</Text>
+      </Pressable>
+
+      <Text style={styles.section}>NIC / NATIONAL ID</Text>
       <TextInput
         style={styles.input}
-        placeholder="NIC or officer ID"
+        placeholder="e.g. 123456789V"
         placeholderTextColor={colors.textMuted}
         value={nicQuery}
         onChangeText={setNicQuery}
-        autoCapitalize="none"
+        autoCapitalize="characters"
+        editable={!submitting && !!deviceBinding}
       />
-      <Pressable style={styles.primary} onPress={tryManual}>
-        <Text style={styles.primaryText}>Verify &amp; bind</Text>
+      <Pressable
+        style={[styles.primary, (submitting || !deviceBinding) && { opacity: 0.7 }]}
+        onPress={() => void tryManual()}
+        disabled={submitting || !deviceBinding}
+      >
+        {submitting ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.primaryText}>Verify and sign in</Text>
+        )}
       </Pressable>
 
       <Pressable style={styles.back} onPress={() => navigation.goBack()}>
@@ -107,7 +109,18 @@ function createStyles(c: ThemeColors) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: c.bg, paddingHorizontal: 20 },
     title: { color: c.textOnDark, fontSize: 24, fontWeight: '800' },
-    sub: { color: c.textMuted, marginTop: 6, marginBottom: 20 },
+    sub: { color: c.textMuted, marginTop: 6, marginBottom: 12 },
+    warn: { color: c.warning, fontSize: 14, lineHeight: 20, marginBottom: 12 },
+    secondary: {
+      borderWidth: 1,
+      borderColor: c.border,
+      paddingVertical: 14,
+      borderRadius: 14,
+      alignItems: 'center',
+      marginBottom: 20,
+      backgroundColor: c.bgElevated,
+    },
+    secondaryText: { color: c.primary, fontWeight: '800', fontSize: 15 },
     section: {
       color: c.textMuted,
       fontSize: 11,
@@ -115,20 +128,6 @@ function createStyles(c: ThemeColors) {
       fontWeight: '700',
       marginBottom: 10,
     },
-    list: { gap: 10, paddingBottom: 16 },
-    row: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: 16,
-      borderRadius: 14,
-      backgroundColor: c.bgElevated,
-      borderWidth: 1,
-      borderColor: c.border,
-    },
-    name: { color: c.textOnDark, fontSize: 17, fontWeight: '700' },
-    nic: { color: c.textMuted, fontSize: 13, marginTop: 4 },
-    chev: { color: c.primaryLight, fontSize: 22, fontWeight: '300' },
     input: {
       backgroundColor: c.bgElevated,
       borderWidth: 1,

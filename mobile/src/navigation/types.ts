@@ -2,6 +2,7 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 
 export type PatrolStackParamList = {
   PatrolHome: undefined;
+  OfficerPatrolScan: undefined;
   ScanCheckpoint: { checkpointId?: string } | undefined;
   SampleQr: undefined;
   Violation: undefined;
@@ -11,17 +12,14 @@ export type PatrolStackParamList = {
 };
 
 export type MainTabParamList = {
-  Dashboard: undefined;
+  Home: undefined;
   Patrols: NavigatorScreenParams<PatrolStackParamList>;
-  Officers: undefined;
-  Devices: undefined;
-  Settings: undefined;
 };
 
 export type RootStackParamList = {
   Splash: undefined;
   Auth: undefined;
-  ScanOfficer: undefined;
+  ScanAuthQr: { mode: 'device' | 'officer' };
   OfficerBind: undefined;
   Main: NavigatorScreenParams<MainTabParamList> | undefined;
   Profile: undefined;

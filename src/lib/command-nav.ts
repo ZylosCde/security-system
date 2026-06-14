@@ -1,5 +1,16 @@
 import type { LucideIcon } from "lucide-react";
-import { Bell, Clock, MapPin, Shield, Users, AlertTriangle } from "lucide-react";
+import {
+  Bell,
+  Clock,
+  MapPin,
+  Shield,
+  Users,
+  AlertTriangle,
+  Building2,
+  MapPinned,
+  UserCog,
+  Footprints,
+} from "lucide-react";
 
 export type CommandNavItem = {
   href: string;
@@ -11,6 +22,7 @@ export type CommandNavItem = {
 
 export const COMMAND_NAV_MAIN: readonly CommandNavItem[] = [
   { href: "/", label: "Live Operations", icon: MapPin },
+  { href: "/patrols", label: "Patrols", icon: Footprints },
   { href: "/officers", label: "Officers", icon: Users },
   { href: "/devices", label: "Devices", icon: Shield },
   { href: "/checkpoints", label: "Checkpoints", icon: MapPin },
@@ -22,6 +34,12 @@ export const COMMAND_NAV_MAIN: readonly CommandNavItem[] = [
   },
   { href: "/violations", label: "Violations", icon: AlertTriangle },
   { href: "/incidents", label: "Incidents", icon: Bell },
+] as const;
+
+export const COMMAND_NAV_MASTER: readonly CommandNavItem[] = [
+  { href: "/master/clients", label: "Clients", icon: Building2 },
+  { href: "/master/sites", label: "Sites", icon: MapPinned },
+  { href: "/master/users", label: "Users", icon: UserCog },
 ] as const;
 
 export function isCommandNavActive(pathname: string, item: CommandNavItem): boolean {

@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
-import { Plus, Search, QrCode, ArrowLeft, Copy } from "lucide-react";
+import { Plus, Search, ArrowLeft, QrCode } from "lucide-react";
+import { generateNicLoginToken, getNicLoginQRDataURL } from "@/lib/qrService";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,22 +18,25 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { CommandLayout } from "@/components/command-layout";
 import { usePatrolStore } from "@/hooks/usePatrolStore";
-import type { Officer } from "@/lib/types";
-import { generateOfficerToken, getOfficerQRDataURL } from "@/lib/qrService";
+import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export default function OfficersPage() {
-  const { officers, updateOfficerStatus } = usePatrolStore();
+  const { officers, loading, addOfficer } = usePatrolStore();
+  const { canWrite } = useAuth();
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
-  const [qrOfficer, setQrOfficer] = useState<Officer | null>(null);
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [qrOfficer, setQrOfficer] = useState<{
+    name: string;
+    nic: string;
+    dataUrl: string;
+    token: string;
+  } | null>(null);
   const [newOfficer, setNewOfficer] = useState({
-    name: "",
-    nic: "",
-    shift: "22:00–06:00",
-    phone: "",
+    officerName: "",
+    NIC: "",
+    Position: "JPO" as "JPO" | "SPO",
   });
 
   const filtered = officers.filter(
@@ -41,54 +45,20 @@ export default function OfficersPage() {
       o.nic.toLowerCase().includes(search.toLowerCase())
   );
 
-  useEffect(() => {
-    if (!qrOfficer) {
-      setQrDataUrl(null);
-      return;
-    }
-    let cancelled = false;
-    void getOfficerQRDataURL(qrOfficer.id).then((url) => {
-      if (!cancelled) setQrDataUrl(url);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [qrOfficer]);
-
-  const handleStatusChange = (id: string, status: Officer["status"]) => {
-    updateOfficerStatus(id, status);
-    toast.success("Status updated", { description: `Officer now ${status}` });
-  };
-
-  const handleAddOfficer = () => {
-    if (!newOfficer.name || !newOfficer.nic) {
+  const handleAddOfficer = async () => {
+    if (!newOfficer.officerName || !newOfficer.NIC) {
       toast.error("Name and NIC required");
       return;
     }
-    toast.success("Officer added", { description: `${newOfficer.name} registered` });
-    setShowAdd(false);
-    setNewOfficer({ name: "", nic: "", shift: "22:00–06:00", phone: "" });
-  };
-
-  const copyToken = async (officer: Officer) => {
-    const token = generateOfficerToken(officer.id);
     try {
-      await navigator.clipboard.writeText(token);
-      toast.success("Token copied", { description: "Officer login QR token copied to clipboard" });
-    } catch {
-      toast.error("Could not copy token");
+      await addOfficer(newOfficer);
+      toast.success("Officer registered", { description: newOfficer.officerName });
+      setShowAdd(false);
+      setNewOfficer({ officerName: "", NIC: "", Position: "JPO" });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Registration failed");
     }
   };
-
-  const getStatusColor = (status: Officer["status"]) => {
-    if (status === "on-duty")
-      return "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400";
-    if (status === "on-break")
-      return "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-400";
-    return "border-border bg-muted text-muted-foreground";
-  };
-
-  const qrToken = qrOfficer ? generateOfficerToken(qrOfficer.id) : "";
 
   return (
     <>
@@ -118,9 +88,14 @@ export default function OfficersPage() {
                 className="h-11 rounded-2xl border-border bg-muted/50 pl-11"
               />
             </div>
-            <Button onClick={() => setShowAdd(true)} className="h-11 gap-2 rounded-2xl px-4 sm:px-6">
-              <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Add Officer</span>
-            </Button>
+            {canWrite ? (
+              <Button
+                onClick={() => setShowAdd(true)}
+                className="h-11 gap-2 rounded-2xl px-4 sm:px-6"
+              >
+                <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Add Officer</span>
+              </Button>
+            ) : null}
           </>
         }
       >
@@ -141,87 +116,127 @@ export default function OfficersPage() {
                 <TableHeader>
                   <TableRow className="border-border hover:bg-transparent">
                     <TableHead className="w-[min(280px,40vw)] pl-4 sm:pl-6">Officer</TableHead>
-                    <TableHead>NIC / ID</TableHead>
-                    <TableHead className="hidden md:table-cell">Shift</TableHead>
-                    <TableHead className="hidden lg:table-cell">Phone</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="pr-4 text-right sm:pr-6">Actions</TableHead>
+                    <TableHead>NIC</TableHead>
+                    <TableHead>Position</TableHead>
+                    <TableHead className="pr-4 sm:pr-6 text-right">Sign-in QR</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.length === 0 && (
+                  {loading && filtered.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="py-12 text-center text-muted-foreground">
+                      <TableCell colSpan={4} className="py-12 text-center text-muted-foreground">
+                        Loading…
+                      </TableCell>
+                    </TableRow>
+                  ) : filtered.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="py-12 text-center text-muted-foreground">
                         No officers found
                       </TableCell>
                     </TableRow>
-                  )}
-                  {filtered.map((officer) => (
-                    <TableRow key={officer.id} className="border-border table-row-hover">
-                      <TableCell className="pl-4 sm:pl-6">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-9 w-9">
-                            <AvatarFallback className="bg-muted text-sm font-medium">
-                              {officer.name
-                                .split(" ")
-                                .map((n) => n[0])
-                                .join("")}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <div className="truncate font-medium tracking-tight">{officer.name}</div>
-                            <div className="font-mono text-[10px] text-muted-foreground">{officer.id}</div>
+                  ) : (
+                    filtered.map((officer) => (
+                      <TableRow key={officer.id} className="border-border table-row-hover">
+                        <TableCell className="pl-4 sm:pl-6">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-9 w-9">
+                              <AvatarFallback className="bg-muted text-sm font-medium">
+                                {officer.name
+                                  .split(" ")
+                                  .map((n) => n[0])
+                                  .join("")}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <div className="truncate font-medium tracking-tight">
+                                {officer.name}
+                              </div>
+                              <div className="font-mono text-[10px] text-muted-foreground">
+                                ID {officer.id}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-mono text-sm">{officer.nic}</div>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <div className="font-mono text-sm text-muted-foreground">{officer.shift}</div>
-                      </TableCell>
-                      <TableCell className="hidden lg:table-cell">
-                        <div className="text-sm text-muted-foreground">{officer.phone}</div>
-                      </TableCell>
-                      <TableCell>
-                        <select
-                          value={officer.status}
-                          onChange={(e) =>
-                            handleStatusChange(officer.id, e.target.value as Officer["status"])
-                          }
-                          className={cn(
-                            "cursor-pointer rounded-full border px-2 py-1 text-xs font-medium sm:px-3",
-                            getStatusColor(officer.status)
-                          )}
-                        >
-                          <option value="on-duty">On Duty</option>
-                          <option value="on-break">On Break</option>
-                          <option value="off-duty">Off Duty</option>
-                        </select>
-                      </TableCell>
-                      <TableCell className="pr-4 text-right sm:pr-6">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 gap-1.5 rounded-xl px-2.5 text-xs sm:px-3"
-                          onClick={() => setQrOfficer(officer)}
-                        >
-                          <QrCode className="h-3.5 w-3.5" />
-                          <span className="hidden sm:inline">View QR</span>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-mono text-sm">{officer.nic}</div>
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={cn(
+                              "rounded-full border px-3 py-1 text-xs font-bold",
+                              officer.shift === "SPO"
+                                ? "border-blue-500/20 bg-blue-500/10 text-blue-700 dark:text-blue-400"
+                                : "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                            )}
+                          >
+                            {officer.shift}
+                          </span>
+                        </TableCell>
+                        <TableCell className="pr-4 sm:pr-6 text-right">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5"
+                            onClick={() => {
+                              const token = generateNicLoginToken(officer.nic);
+                              void getNicLoginQRDataURL(officer.nic).then((dataUrl) =>
+                                setQrOfficer({
+                                  name: officer.name,
+                                  nic: officer.nic,
+                                  dataUrl,
+                                  token,
+                                })
+                              );
+                            }}
+                          >
+                            <QrCode className="h-3.5 w-3.5" /> QR
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>
           </Card>
 
           <div className="px-1 font-mono text-xs text-muted-foreground">
-            {filtered.length} officers • QR card login • Session-based authentication
+            {filtered.length} officers · Mobile: device QR then officer badge QR
           </div>
         </div>
       </CommandLayout>
+
+      {qrOfficer ? (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          onClick={() => setQrOfficer(null)}
+          role="presentation"
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl border border-border bg-card p-6 text-center shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+          >
+            <h2 className="mb-1 text-lg font-semibold">Officer sign-in QR</h2>
+            <p className="mb-4 text-sm text-muted-foreground">{qrOfficer.name}</p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={qrOfficer.dataUrl}
+              alt={`Sign-in QR for ${qrOfficer.name}`}
+              className="mx-auto rounded-lg border border-border bg-white p-2"
+              width={200}
+              height={200}
+            />
+            <p className="mt-3 font-mono text-sm">{qrOfficer.nic}</p>
+            <p className="mt-2 break-all font-mono text-[10px] text-muted-foreground/80">
+              {qrOfficer.token}
+            </p>
+            <Button className="mt-6 w-full rounded-2xl" onClick={() => setQrOfficer(null)}>
+              Close
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       {showAdd && (
         <div
@@ -233,50 +248,46 @@ export default function OfficersPage() {
             className="w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-xl sm:p-8"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
-            aria-modal="true"
-            aria-labelledby="add-officer-title"
           >
-            <div id="add-officer-title" className="mb-1 text-xl font-semibold tracking-tight">
-              Register New Officer
-            </div>
+            <div className="mb-1 text-xl font-semibold tracking-tight">Register New Officer</div>
             <div className="mb-6 text-sm text-muted-foreground">
-              Officer will authenticate via NFC/QR card. No password required.
+              Officers sign in on mobile with their NIC (national ID).
             </div>
 
             <div className="space-y-4">
               <div>
                 <div className="mb-1.5 text-xs text-muted-foreground">FULL NAME</div>
                 <Input
-                  value={newOfficer.name}
-                  onChange={(e) => setNewOfficer({ ...newOfficer, name: e.target.value })}
+                  value={newOfficer.officerName}
+                  onChange={(e) =>
+                    setNewOfficer({ ...newOfficer, officerName: e.target.value })
+                  }
                   className="border-border bg-muted/50"
                 />
               </div>
               <div>
-                <div className="mb-1.5 text-xs text-muted-foreground">NIC / COMPANY ID</div>
+                <div className="mb-1.5 text-xs text-muted-foreground">NIC</div>
                 <Input
-                  value={newOfficer.nic}
-                  onChange={(e) => setNewOfficer({ ...newOfficer, nic: e.target.value })}
+                  value={newOfficer.NIC}
+                  onChange={(e) => setNewOfficer({ ...newOfficer, NIC: e.target.value })}
                   className="border-border bg-muted/50 font-mono"
                 />
               </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <div className="mb-1.5 text-xs text-muted-foreground">SHIFT</div>
-                  <Input
-                    value={newOfficer.shift}
-                    onChange={(e) => setNewOfficer({ ...newOfficer, shift: e.target.value })}
-                    className="border-border bg-muted/50"
-                  />
-                </div>
-                <div>
-                  <div className="mb-1.5 text-xs text-muted-foreground">PHONE</div>
-                  <Input
-                    value={newOfficer.phone}
-                    onChange={(e) => setNewOfficer({ ...newOfficer, phone: e.target.value })}
-                    className="border-border bg-muted/50"
-                  />
-                </div>
+              <div>
+                <div className="mb-1.5 text-xs text-muted-foreground">POSITION</div>
+                <select
+                  className="h-11 w-full rounded-md border border-border bg-muted/50 px-3 text-sm"
+                  value={newOfficer.Position}
+                  onChange={(e) =>
+                    setNewOfficer({
+                      ...newOfficer,
+                      Position: e.target.value as "JPO" | "SPO",
+                    })
+                  }
+                >
+                  <option value="JPO">JPO</option>
+                  <option value="SPO">SPO</option>
+                </select>
               </div>
             </div>
 
@@ -284,62 +295,8 @@ export default function OfficersPage() {
               <Button variant="outline" onClick={() => setShowAdd(false)} className="h-12 flex-1 rounded-2xl">
                 Cancel
               </Button>
-              <Button onClick={handleAddOfficer} className="h-12 flex-1 rounded-2xl">
+              <Button onClick={() => void handleAddOfficer()} className="h-12 flex-1 rounded-2xl">
                 REGISTER OFFICER
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {qrOfficer && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm dark:bg-black/80"
-          onClick={() => setQrOfficer(null)}
-          role="presentation"
-        >
-          <div
-            className="w-full max-w-sm rounded-3xl border border-border bg-card p-6 shadow-xl sm:p-8"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="officer-qr-title"
-          >
-            <div id="officer-qr-title" className="mb-1 text-xl font-semibold tracking-tight">
-              Officer login QR
-            </div>
-            <div className="mb-4 text-sm text-muted-foreground">
-              {qrOfficer.name} · {qrOfficer.id}
-            </div>
-
-            <div className="mb-4 flex justify-center rounded-2xl bg-white p-4">
-              {qrDataUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={qrDataUrl} alt={`Login QR for ${qrOfficer.name}`} width={200} height={200} />
-              ) : (
-                <div className="flex h-[200px] w-[200px] items-center justify-center text-sm text-muted-foreground">
-                  Generating…
-                </div>
-              )}
-            </div>
-
-            <div className="mb-6 rounded-xl border border-border bg-muted/40 p-3">
-              <div className="mb-1 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-                Token
-              </div>
-              <div className="break-all font-mono text-xs">{qrToken}</div>
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Button
-                variant="outline"
-                onClick={() => void copyToken(qrOfficer)}
-                className="h-11 flex-1 gap-2 rounded-2xl"
-              >
-                <Copy className="h-4 w-4" /> Copy token
-              </Button>
-              <Button onClick={() => setQrOfficer(null)} className="h-11 flex-1 rounded-2xl">
-                Close
               </Button>
             </div>
           </div>

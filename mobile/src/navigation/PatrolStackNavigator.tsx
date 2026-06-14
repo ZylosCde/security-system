@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { PatrolStackParamList } from './types';
 import { PatrolScreen } from '../screens/PatrolScreen';
+import { PatrolOfficerScanScreen } from '../screens/PatrolOfficerScanScreen';
 import { ScanCheckpointScreen } from '../screens/ScanCheckpointScreen';
 import { SampleQrScreen } from '../screens/SampleQrScreen';
 import { ViolationScreen } from '../screens/ViolationScreen';
@@ -16,9 +17,10 @@ export function PatrolStackNavigator() {
   const { colors } = useAppTheme();
   const stackScreenOptions = useMemo(
     () => ({
-      headerStyle: { backgroundColor: colors.bg },
-      headerTintColor: colors.textOnDark,
+      headerStyle: { backgroundColor: colors.headerBg },
+      headerTintColor: colors.headerText,
       headerTitleStyle: { fontWeight: '600' as const, fontSize: 17 },
+      headerShadowVisible: false,
       contentStyle: { backgroundColor: colors.bg },
     }),
     [colors]
@@ -26,7 +28,12 @@ export function PatrolStackNavigator() {
 
   return (
     <Stack.Navigator screenOptions={stackScreenOptions}>
-      <Stack.Screen name="PatrolHome" component={PatrolScreen} options={{ title: 'Patrol' }} />
+      <Stack.Screen name="PatrolHome" component={PatrolScreen} options={{ headerShown: false }} />
+      <Stack.Screen
+        name="OfficerPatrolScan"
+        component={PatrolOfficerScanScreen}
+        options={{ headerShown: false }}
+      />
       <Stack.Screen
         name="ScanCheckpoint"
         component={ScanCheckpointScreen}

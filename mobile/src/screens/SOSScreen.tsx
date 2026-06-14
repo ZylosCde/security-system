@@ -24,8 +24,9 @@ export function SOSScreen() {
     const t = setTimeout(() => {
       if (cancelled.current) return;
       if (count === 1) {
-        triggerSOS();
-        navigation.replace('SOSActive');
+        void triggerSOS().then(() => {
+          navigation.replace('SOSActive');
+        });
         setCount(0);
       } else {
         setCount(count - 1);
@@ -36,7 +37,7 @@ export function SOSScreen() {
 
   const cancel = () => {
     cancelled.current = true;
-    navigation.goBack();
+    navigation.navigate('Main' as any, { screen: 'Home' });
   };
 
   return (

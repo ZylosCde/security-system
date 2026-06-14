@@ -1,5 +1,10 @@
 import type { NextConfig } from "next";
 
+const apiBackend =
+  process.env.API_BACKEND_URL?.replace(/\/$/, "") ??
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ??
+  "http://5.189.133.3:3001";
+
 const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: [
@@ -8,6 +13,14 @@ const nextConfig: NextConfig = {
       "recharts",
       "framer-motion",
     ],
+  },
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${apiBackend}/api/:path*`,
+      },
+    ];
   },
 };
 

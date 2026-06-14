@@ -10,6 +10,7 @@ import React, {
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { darkColors, lightColors, type ThemeColors } from '../theme/colors';
+import { createUiStyles, type UiStyles } from '../theme/ui';
 
 const STORAGE_THEME = 'aegis_theme_preference';
 
@@ -17,6 +18,7 @@ export type ThemePreference = 'system' | 'light' | 'dark';
 
 type ThemeContextValue = {
   colors: ThemeColors;
+  ui: UiStyles;
   isDark: boolean;
   preference: ThemePreference;
   setPreference: (p: ThemePreference) => void;
@@ -60,10 +62,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   );
 
   const colors = useMemo(() => (isDark ? darkColors : lightColors), [isDark]);
+  const ui = useMemo(() => createUiStyles(colors), [colors]);
 
   const value = useMemo(
-    () => ({ colors, isDark, preference, setPreference, ready }),
-    [colors, isDark, preference, setPreference, ready]
+    () => ({ colors, ui, isDark, preference, setPreference, ready }),
+    [colors, ui, isDark, preference, setPreference, ready]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

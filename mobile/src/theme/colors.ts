@@ -1,10 +1,12 @@
-/** Shared design tokens — dark (default) and light surfaces for international-ready UI */
+/** Flat, professional palette — no gradients */
 export type ThemeColors = {
   bg: string;
   bgElevated: string;
   surface: string;
   card: string;
   cardSecondary: string;
+  headerBg: string;
+  headerText: string;
   textOnDark: string;
   textMuted: string;
   textOnCard: string;
@@ -12,61 +14,86 @@ export type ThemeColors = {
   primary: string;
   primaryLight: string;
   primarySoft: string;
+  onPrimary: string;
   border: string;
   borderLight: string;
+  divider: string;
+  listRow: string;
   success: string;
+  successSoft: string;
   warning: string;
+  warningSoft: string;
   danger: string;
+  dangerSoft: string;
   dangerDeep: string;
   sosPulse: string;
   tabInactive: string;
   tabActive: string;
-};
-
-export const darkColors: ThemeColors = {
-  bg: '#0B1120',
-  bgElevated: '#111827',
-  surface: '#1E293B',
-  card: '#FFFFFF',
-  cardSecondary: '#F8FAFC',
-  textOnDark: '#F8FAFC',
-  textMuted: '#94A3B8',
-  textOnCard: '#0F172A',
-  textMutedOnCard: '#64748B',
-  primary: '#2563EB',
-  primaryLight: '#3B82F6',
-  primarySoft: 'rgba(37, 99, 235, 0.12)',
-  border: '#1E293B',
-  borderLight: '#E2E8F0',
-  success: '#10B981',
-  warning: '#F59E0B',
-  danger: '#DC2626',
-  dangerDeep: '#7F1D1D',
-  sosPulse: '#EF4444',
-  tabInactive: '#64748B',
-  tabActive: '#3B82F6',
+  tabBar: string;
 };
 
 export const lightColors: ThemeColors = {
-  bg: '#F1F5F9',
+  bg: '#ECEFF2',
   bgElevated: '#FFFFFF',
-  surface: '#E2E8F0',
+  surface: '#FFFFFF',
   card: '#FFFFFF',
-  cardSecondary: '#F8FAFC',
-  textOnDark: '#0F172A',
-  textMuted: '#64748B',
-  textOnCard: '#0F172A',
-  textMutedOnCard: '#64748B',
-  primary: '#2563EB',
-  primaryLight: '#1D4ED8',
-  primarySoft: 'rgba(37, 99, 235, 0.1)',
-  border: '#E2E8F0',
-  borderLight: '#CBD5E1',
-  success: '#059669',
-  warning: '#D97706',
+  cardSecondary: '#F7F8FA',
+  headerBg: '#1A7B64',
+  headerText: '#FFFFFF',
+  textOnDark: '#111B21',
+  textMuted: '#667781',
+  textOnCard: '#111B21',
+  textMutedOnCard: '#667781',
+  primary: '#1A7B64',
+  primaryLight: '#15856C',
+  primarySoft: '#E7F5F1',
+  onPrimary: '#FFFFFF',
+  border: '#E9EDEF',
+  borderLight: '#F0F2F5',
+  divider: '#E9EDEF',
+  listRow: '#FFFFFF',
+  success: '#1A7B64',
+  successSoft: '#E7F5F1',
+  warning: '#B45309',
+  warningSoft: '#FEF3C7',
   danger: '#DC2626',
+  dangerSoft: '#FEE2E2',
   dangerDeep: '#991B1B',
+  sosPulse: '#DC2626',
+  tabInactive: '#667781',
+  tabActive: '#1A7B64',
+  tabBar: '#FFFFFF',
+};
+
+export const darkColors: ThemeColors = {
+  bg: '#0B141A',
+  bgElevated: '#1F2C34',
+  surface: '#1F2C34',
+  card: '#1F2C34',
+  cardSecondary: '#182229',
+  headerBg: '#1F2C34',
+  headerText: '#E9EDEF',
+  textOnDark: '#E9EDEF',
+  textMuted: '#8696A0',
+  textOnCard: '#E9EDEF',
+  textMutedOnCard: '#8696A0',
+  primary: '#22A082',
+  primaryLight: '#2BB992',
+  primarySoft: '#1A3D34',
+  onPrimary: '#FFFFFF',
+  border: '#2A3942',
+  borderLight: '#233138',
+  divider: '#2A3942',
+  listRow: '#1F2C34',
+  success: '#22A082',
+  successSoft: '#1A3D34',
+  warning: '#F59E0B',
+  warningSoft: '#422006',
+  danger: '#EF4444',
+  dangerSoft: '#450A0A',
+  dangerDeep: '#7F1D1D',
   sosPulse: '#EF4444',
-  tabInactive: '#64748B',
-  tabActive: '#2563EB',
+  tabInactive: '#8696A0',
+  tabActive: '#22A082',
+  tabBar: '#1F2C34',
 };

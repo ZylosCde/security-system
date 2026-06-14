@@ -2,7 +2,11 @@ import React, { useEffect, useMemo } from 'react';
 import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList } from '../navigation/types';
+import type { ThemeColors } from '../theme/colors';
+import { spacing, radius } from '../theme/spacing';
+import { typography } from '../theme/typography';
 import { useAppTheme } from '../context/ThemeContext';
 import { usePatrol } from '../context/PatrolContext';
 
@@ -11,50 +15,76 @@ type Nav = NativeStackNavigationProp<RootStackParamList, 'Splash'>;
 export function SplashScreen() {
   const navigation = useNavigation<Nav>();
   const { colors, ready } = useAppTheme();
-  const { hydrated, officer } = usePatrol();
+  const { hydrated, deviceBinding } = usePatrol();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   useEffect(() => {
     if (!ready || !hydrated) return;
     const id = setTimeout(() => {
-      const destination = officer ? 'Main' : 'Auth';
+      if (deviceBinding) {
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [
+              {
+                name: 'Main',
+                state: { routes: [{ name: 'Home' }], index: 0 },
+              },
+            ],
+          })
+        );
+        return;
+      }
+
       navigation.dispatch(
         CommonActions.reset({
           index: 0,
-          routes:
-            destination === 'Main'
-              ? [
-                  {
-                    name: 'Main',
-                    state: { routes: [{ name: 'Dashboard' }], index: 0 },
-                  },
-                ]
-              : [{ name: 'Auth' }],
+          routes: [{ name: 'ScanAuthQr', params: { mode: 'device' } }],
         })
       );
     }, 400);
     return () => clearTimeout(id);
-  }, [ready, hydrated, officer, navigation]);
+  }, [ready, hydrated, deviceBinding, navigation]);
 
   return (
     <View style={styles.wrap} accessibilityLabel="Loading">
-      <Text style={styles.wordmark}>AEGIS</Text>
-      <Text style={styles.sub}>Field Operations</Text>
-      <ActivityIndicator size="large" color={colors.primary} accessibilityLabel="Loading indicator" />
+      <View style={styles.logo}>
+        <Ionicons name="shield-checkmark" size={36} color={colors.onPrimary} />
+      </View>
+      <Text style={styles.wordmark}>AEGIS Patrol</Text>
+      <Text style={styles.sub}>Field operations</Text>
+      <ActivityIndicator size="small" color={colors.primary} style={styles.loader} />
     </View>
   );
 }
 
-function createStyles(c: { bg: string; textOnDark: string; textMuted: string }) {
+function createStyles(c: ThemeColors) {
   return StyleSheet.create({
     wrap: {
       flex: 1,
-      backgroundColor: c.bg,
+      backgroundColor: c.headerBg,
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 12,
+      padding: spacing.xxl,
     },
-    wordmark: { color: c.textOnDark, fontSize: 32, fontWeight: '900', letterSpacing: 4 },
-    sub: { color: c.textMuted, fontSize: 14, fontWeight: '600', marginBottom: 8 },
+    logo: {
+      width: 72,
+      height: 72,
+      borderRadius: radius.lg,
+      backgroundColor: 'rgba(255,255,255,0.15)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.lg,
+    },
+    wordmark: {
+      ...typography.title,
+      color: c.headerText,
+    },
+    sub: {
+      ...typography.bodySm,
+      color: 'rgba(255,255,255,0.8)',
+      marginTop: spacing.xs,
+    },
+    loader: { marginTop: spacing.xxl },
   });
 }
