@@ -19,7 +19,7 @@ function getBaseUrl(): string {
   return (
     process.env.API_BACKEND_URL ??
     process.env.NEXT_PUBLIC_API_URL ??
-    "http://5.189.133.3:3001"
+    "https://catalyst-security.zyloscode.com"
   ).replace(/\/$/, "");
 }
 

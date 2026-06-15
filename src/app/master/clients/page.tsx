@@ -45,7 +45,10 @@ export default function MasterClientsPage() {
   }, []);
 
   useEffect(() => {
-    void load();
+    const timer = setTimeout(() => {
+      void load();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [load]);
 
   const handleCreate = async () => {

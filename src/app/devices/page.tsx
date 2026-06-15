@@ -55,7 +55,10 @@ export default function DevicesPage() {
   }, []);
 
   useEffect(() => {
-    void loadAssignments();
+    const timer = setTimeout(() => {
+      void loadAssignments();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [loadAssignments, devices.length]);
 
   const handleRegister = async () => {

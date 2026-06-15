@@ -55,8 +55,8 @@ export async function syncQueue(): Promise<number> {
       try {
         await recordPatrolVisit(event.payload);
         synced += 1;
-      } catch (e: any) {
-        const msg = e?.message || '';
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : '';
         if (msg.toLowerCase().includes('route violation') || msg.toLowerCase().includes('order')) {
           // Route order violations should be cleared from the queue to avoid clogging it
           synced += 1;

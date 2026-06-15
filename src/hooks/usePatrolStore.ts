@@ -195,7 +195,10 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   useEffect(() => {
-    void refreshAll();
+    const timer = setTimeout(() => {
+      void refreshAll();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [refreshAll]);
 
   const updateSession = (id: string, updates: Partial<PatrolSession>) => {

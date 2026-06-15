@@ -66,34 +66,34 @@ export const lightColors: ThemeColors = {
 };
 
 export const darkColors: ThemeColors = {
-  bg: '#0B141A',
-  bgElevated: '#1F2C34',
-  surface: '#1F2C34',
-  card: '#1F2C34',
-  cardSecondary: '#182229',
-  headerBg: '#1F2C34',
-  headerText: '#E9EDEF',
-  textOnDark: '#E9EDEF',
-  textMuted: '#8696A0',
-  textOnCard: '#E9EDEF',
-  textMutedOnCard: '#8696A0',
-  primary: '#22A082',
-  primaryLight: '#2BB992',
-  primarySoft: '#1A3D34',
-  onPrimary: '#FFFFFF',
-  border: '#2A3942',
-  borderLight: '#233138',
-  divider: '#2A3942',
-  listRow: '#1F2C34',
-  success: '#22A082',
-  successSoft: '#1A3D34',
-  warning: '#F59E0B',
-  warningSoft: '#422006',
+  bg: '#000000', // True black for maximum OLED battery saving
+  bgElevated: '#000000', // Pushed to true black
+  surface: '#050505', // Barely off-black
+  card: '#000000', // True black
+  cardSecondary: '#0A0A0A',
+  headerBg: '#000000', // True black
+  headerText: '#FFFFFF', // High contrast
+  textOnDark: '#FFFFFF', // High contrast
+  textMuted: '#A1A1AA', // High contrast muted
+  textOnCard: '#FFFFFF',
+  textMutedOnCard: '#A1A1AA',
+  primary: '#10B981', // Brighter green for contrast
+  primaryLight: '#34D399',
+  primarySoft: '#022C22', // Deeper soft primary
+  onPrimary: '#000000', // Black text on primary for contrast
+  border: '#27272A', // Using border to define edges instead of background colors
+  borderLight: '#18181B',
+  divider: '#27272A',
+  listRow: '#000000', // True black
+  success: '#10B981',
+  successSoft: '#022C22',
+  warning: '#FBBF24',
+  warningSoft: '#451A03',
   danger: '#EF4444',
   dangerSoft: '#450A0A',
   dangerDeep: '#7F1D1D',
   sosPulse: '#EF4444',
-  tabInactive: '#8696A0',
-  tabActive: '#22A082',
-  tabBar: '#1F2C34',
+  tabInactive: '#A1A1AA',
+  tabActive: '#10B981',
+  tabBar: '#000000', // True black
 };

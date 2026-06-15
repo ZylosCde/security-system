@@ -45,8 +45,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setUser(loadStoredUser());
-    setLoading(false);
+    const timer = setTimeout(() => {
+      setUser(loadStoredUser());
+      setLoading(false);
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {

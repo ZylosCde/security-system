@@ -9,12 +9,12 @@ export type QueuedEvent =
   | { type: 'sos'; payload: Record<string, unknown> };
 
 export function queueEvent(event: QueuedEvent) {
-  const queue: any[] = getQueue();
+  const queue = getQueue();
   queue.push({ ...event, queuedAt: new Date().toISOString() });
   localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
 }
 
-export function getQueue(): any[] {
+export function getQueue(): (QueuedEvent & { queuedAt?: string })[] {
   try {
     return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
   } catch {

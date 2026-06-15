@@ -41,7 +41,7 @@ export function PatrolStackNavigator() {
       />
       <Stack.Screen name="SampleQr" component={SampleQrScreen} options={{ title: 'Test QR codes' }} />
       <Stack.Screen name="Violation" component={ViolationScreen} options={{ title: 'Violation' }} />
-      <Stack.Screen name="Incident" component={IncidentScreen} options={{ title: 'Report incident' }} />
+      <Stack.Screen name="Incident" component={IncidentScreen} options={{ headerShown: false }} />
       <Stack.Screen name="SOS" component={SOSScreen} options={{ presentation: 'fullScreenModal', headerShown: false }} />
       <Stack.Screen
         name="SOSActive"

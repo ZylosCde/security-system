@@ -40,7 +40,10 @@ export function OfficerAssignmentScreen({ onAssigned }: { onAssigned?: () => voi
   }, []);
 
   useEffect(() => {
-    void load();
+    const timer = setTimeout(() => {
+      void load();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [load]);
 
   const handleAssign = async () => {

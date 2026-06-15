@@ -3,13 +3,14 @@
 import React, { useState } from 'react';
 import { X, AlertTriangle, QrCode, MapPin, Wifi, WifiOff, Camera } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { routes } from '@/lib/mockData';
 import { usePatrolStore } from '@/hooks/usePatrolStore';
 import { validateQRToken } from '@/lib/qrService';
 import { validateCheckpointScan, generateScanEvent } from '@/lib/routeEngine';
 import { queueEvent, syncQueue, hasPendingSync } from '@/lib/offlineSync';
 import { toast } from 'sonner';
 import { AnimatePresence } from 'framer-motion';
+
+import type { Severity, IncidentType, PatrolSession, Violation } from '@/lib/types';
 
 interface DeviceSimulatorProps {
   onClose: () => void;
@@ -24,13 +25,28 @@ export function DeviceSimulator({ onClose }: DeviceSimulatorProps) {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [scanned, setScanned] = useState<string[]>([]);
   const [sosCountdown, setSosCountdown] = useState(0);
-  const [incidentForm, setIncidentForm] = useState({ severity: 'Medium', type: 'Suspicious Activity', description: '' });
+  const [incidentForm, setIncidentForm] = useState<{
+    severity: Severity;
+    type: IncidentType;
+    description: string;
+  }>({ severity: 'Medium', type: 'Suspicious Activity', description: '' });
 
   const currentOfficer = storeOfficers.find(o => o.id === selectedOfficerId);
   const currentRoute = storeRoutes[0];
-  const activeCheckpoints = storeCheckpoints.filter(c => currentRoute.checkpoints.includes(c.id));
+  const activeCheckpoints = storeCheckpoints.filter(c => currentRoute?.checkpoints?.includes(c.id));
 
-  const startPatrol = (officerId: string) => {
+  const handleReset = React.useCallback(() => {
+    setStep('idle');
+    setSelectedOfficerId(null);
+    setCurrentSessionId(null);
+    setScanned([]);
+    setSosCountdown(0);
+    if (hasPendingSync()) {
+      syncQueue((n) => toast.info(`${n} events synced`));
+    }
+  }, []);
+
+  const handleStartPatrol = React.useCallback((officerId: string) => {
     const officer = storeOfficers.find(o => o.id === officerId)!;
     const sessionId = 'PS-' + Date.now().toString().slice(-5);
     const newSession = {
@@ -41,7 +57,7 @@ export function DeviceSimulator({ onClose }: DeviceSimulatorProps) {
       startTime: new Date().toISOString(),
       status: 'in-progress' as const,
       checkpointsCompleted: 0,
-      totalCheckpoints: currentRoute.checkpoints.length,
+      totalCheckpoints: currentRoute?.checkpoints?.length ?? 0,
       violations: 0,
       currentLocation: { lat: 6.927, lng: 79.861 },
     };
@@ -51,13 +67,23 @@ export function DeviceSimulator({ onClose }: DeviceSimulatorProps) {
     setStep('patrol');
     setScanned([]);
     toast.success('Patrol started', { description: `${officer.name} authenticated. Session live.` });
-  };
+  }, [storeOfficers, currentRoute, addSession]);
 
-  const scanCheckpoint = (cpId: string) => {
+  const handleScanCheckpoint = React.useCallback((cpId: string) => {
     if (!currentSessionId || scanned.includes(cpId)) return;
 
     const cp = storeCheckpoints.find(c => c.id === cpId)!;
-    const session = { id: currentSessionId, checkpointsCompleted: scanned.length, startTime: new Date().toISOString() } as any;
+    const session: PatrolSession = {
+      id: currentSessionId,
+      deviceId: 'D-001',
+      officerId: selectedOfficerId || '',
+      scheduleId: 'S-001',
+      startTime: new Date().toISOString(),
+      status: 'in-progress',
+      checkpointsCompleted: scanned.length,
+      totalCheckpoints: currentRoute?.checkpoints?.length ?? 0,
+      violations: 0,
+    };
 
     // QR + proximity validation
     const tokenValid = validateQRToken(cp.qrToken, storeCheckpoints).valid;
@@ -73,7 +99,11 @@ export function DeviceSimulator({ onClose }: DeviceSimulatorProps) {
     });
 
     if (!validation.valid && validation.violation) {
-      const v = { ...validation.violation, id: 'V-' + Date.now(), resolved: false } as any;
+      const v: Violation = {
+        ...validation.violation,
+        id: 'V-' + Date.now(),
+        resolved: false,
+      };
       addViolation(v);
       if (isOffline) queueEvent({ type: 'violation', payload: v });
     }
@@ -86,16 +116,16 @@ export function DeviceSimulator({ onClose }: DeviceSimulatorProps) {
 
     updateSession(currentSessionId, { checkpointsCompleted: newScanned.length });
 
-    if (newScanned.length === currentRoute.checkpoints.length) {
+    if (newScanned.length === (currentRoute?.checkpoints?.length ?? 0)) {
       updateSession(currentSessionId, { status: 'completed' });
       toast.success('Patrol complete');
-      setTimeout(reset, 1200);
+      setTimeout(handleReset, 1200);
     } else {
       toast.info('Checkpoint verified', { description: cp.name });
     }
-  };
+  }, [currentSessionId, selectedOfficerId, scanned, storeCheckpoints, currentRoute, addViolation, isOffline, updateSession, handleReset]);
 
-  const reportViolation = (reason: string) => {
+  const handleReportViolation = React.useCallback((reason: string) => {
     if (!currentSessionId) return;
     const v = {
       id: 'V-' + Date.now(),
@@ -111,15 +141,15 @@ export function DeviceSimulator({ onClose }: DeviceSimulatorProps) {
     if (isOffline) queueEvent({ type: 'violation', payload: v });
     toast.error('Violation logged');
     setStep('patrol');
-  };
+  }, [currentSessionId, addViolation, isOffline]);
 
-  const reportIncident = () => {
+  const handleReportIncident = React.useCallback(() => {
     if (!currentSessionId) return;
     const inc = {
       id: 'INC-' + Date.now(),
       sessionId: currentSessionId,
-      severity: incidentForm.severity as any,
-      type: incidentForm.type as any,
+      severity: incidentForm.severity,
+      type: incidentForm.type,
       description: incidentForm.description || 'No details provided',
       timestamp: new Date().toISOString(),
       gps: { lat: 6.927, lng: 79.861 },
@@ -130,9 +160,9 @@ export function DeviceSimulator({ onClose }: DeviceSimulatorProps) {
     toast.success('Incident reported');
     setStep('patrol');
     setIncidentForm({ severity: 'Medium', type: 'Suspicious Activity', description: '' });
-  };
+  }, [currentSessionId, incidentForm, activeCheckpoints, scanned.length, addIncident]);
 
-  const triggerSOS = () => {
+  const handleTriggerSOS = React.useCallback(() => {
     setStep('sos');
     setSosCountdown(3);
     const interval = setInterval(() => {
@@ -159,18 +189,8 @@ export function DeviceSimulator({ onClose }: DeviceSimulatorProps) {
         return c - 1;
       });
     }, 850);
-  };
+  }, [currentSessionId, selectedOfficerId, addSOSEvent, isOffline]);
 
-  const reset = () => {
-    setStep('idle');
-    setSelectedOfficerId(null);
-    setCurrentSessionId(null);
-    setScanned([]);
-    setSosCountdown(0);
-    if (hasPendingSync()) {
-      syncQueue((n) => toast.info(`${n} events synced`));
-    }
-  };
 
   return (
     <div
@@ -198,7 +218,7 @@ export function DeviceSimulator({ onClose }: DeviceSimulatorProps) {
               </div>
               <div className="space-y-2">
                 {storeOfficers.filter(o => o.status !== 'off-duty').map(o => (
-                  <button key={o.id} onClick={() => startPatrol(o.id)} className="w-full flex justify-between border border-border hover:bg-muted/80 px-5 py-4 rounded-2xl text-left text-sm">
+                  <button key={o.id} onClick={() => handleStartPatrol(o.id)} className="w-full flex justify-between border border-border hover:bg-muted/80 px-5 py-4 rounded-2xl text-left text-sm">
                     <div>
                       <div className="font-medium">{o.name}</div>
                       <div className="font-mono text-xs text-muted-foreground">{o.nic}</div>
@@ -235,7 +255,7 @@ export function DeviceSimulator({ onClose }: DeviceSimulatorProps) {
                 {activeCheckpoints.map((cp) => {
                   const done = scanned.includes(cp.id);
                   return (
-                    <button key={cp.id} disabled={done} onClick={() => scanCheckpoint(cp.id)} className={`w-full flex items-center justify-between text-sm border rounded-2xl px-5 py-[15px] mb-1.5 ${done ? 'border-emerald-500/30 bg-emerald-950/20 text-emerald-400' : 'border-border hover:bg-muted/80'}`}>
+                    <button key={cp.id} disabled={done} onClick={() => handleScanCheckpoint(cp.id)} className={`w-full flex items-center justify-between text-sm border rounded-2xl px-5 py-[15px] mb-1.5 ${done ? 'border-emerald-500/30 bg-emerald-950/20 text-emerald-400' : 'border-border hover:bg-muted/80'}`}>
                       <div className="flex items-center gap-3"><MapPin size={15} />{cp.name}</div>
                       {done && <div className="font-mono text-[10px]">VERIFIED</div>}
                     </button>
@@ -246,7 +266,7 @@ export function DeviceSimulator({ onClose }: DeviceSimulatorProps) {
               <div className="grid grid-cols-3 gap-2">
                 <Button onClick={() => setStep('violation')} variant="outline" className="h-12 rounded-2xl border-amber-500/30 text-amber-400 text-xs">VIOLATION</Button>
                 <Button onClick={() => setStep('incident')} variant="outline" className="h-12 rounded-2xl border-border text-xs"><Camera className="w-3.5 h-3.5 mr-1" /> INCIDENT</Button>
-                <Button onClick={triggerSOS} variant="destructive" className="h-12 rounded-2xl text-xs">SOS</Button>
+                <Button onClick={handleTriggerSOS} variant="destructive" className="h-12 rounded-2xl text-xs">SOS</Button>
               </div>
             </div>
           )}
@@ -256,7 +276,7 @@ export function DeviceSimulator({ onClose }: DeviceSimulatorProps) {
               <div className="font-semibold text-xl tracking-tight mb-1">Report Violation</div>
               <div className="text-sm text-muted-foreground mb-6">Select reason. Timestamp + GPS attached.</div>
               {['Emergency on premises', 'Equipment failure', 'Supervisor instruction', 'Medical', 'Other (text required)'].map(r => (
-                <button key={r} onClick={() => reportViolation(r)} className="w-full text-left border border-border hover:bg-muted/80 px-5 py-[15px] rounded-2xl mb-2 text-sm">{r}</button>
+                <button key={r} onClick={() => handleReportViolation(r)} className="w-full text-left border border-border hover:bg-muted/80 px-5 py-[15px] rounded-2xl mb-2 text-sm">{r}</button>
               ))}
               <Button variant="ghost" onClick={() => setStep('patrol')} className="w-full mt-2">Cancel</Button>
             </div>
@@ -265,12 +285,12 @@ export function DeviceSimulator({ onClose }: DeviceSimulatorProps) {
           {step === 'incident' && (
             <div>
               <div className="font-semibold text-xl mb-4">Log Incident</div>
-              <select value={incidentForm.type} onChange={e => setIncidentForm({ ...incidentForm, type: e.target.value })} className="w-full bg-muted border border-border rounded-2xl px-4 py-3 text-sm mb-3">
+              <select value={incidentForm.type} onChange={e => setIncidentForm({ ...incidentForm, type: e.target.value as IncidentType })} className="w-full bg-muted border border-border rounded-2xl px-4 py-3 text-sm mb-3">
                 {['Trespasser','Theft','Fire','Injury','Suspicious Activity','Equipment Failure','Other'].map(t => <option key={t}>{t}</option>)}
               </select>
               <textarea value={incidentForm.description} onChange={e => setIncidentForm({ ...incidentForm, description: e.target.value })} placeholder="Description..." className="w-full h-24 bg-muted border border-border rounded-2xl p-4 text-sm mb-3" />
               <div className="flex gap-2">
-                <Button onClick={reportIncident} className="flex-1 h-12 rounded-2xl">SUBMIT REPORT</Button>
+                <Button onClick={handleReportIncident} className="flex-1 h-12 rounded-2xl">SUBMIT REPORT</Button>
                 <Button variant="outline" onClick={() => setStep('patrol')} className="flex-1 h-12 rounded-2xl">Cancel</Button>
               </div>
             </div>

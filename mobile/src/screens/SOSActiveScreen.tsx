@@ -33,7 +33,8 @@ export function SOSActiveScreen() {
         style: 'destructive',
         onPress: () => {
           cancelSOS();
-          navigation.navigate('Main' as any, { screen: 'Home' });
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (navigation.navigate as any)('Main', { screen: 'Home' });
         },
       },
     ]);

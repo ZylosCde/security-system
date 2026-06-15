@@ -394,15 +394,12 @@ export function ScanCheckpointScreen() {
       ) : (
         // CHECKLIST VIEW WHEN CAMERA IS OFF
         <View style={{ flex: 1 }}>
-          <Pressable
-            style={[styles.primary, { flexDirection: 'row', gap: 10, justifyContent: 'center', marginVertical: 12, backgroundColor: colors.primary }]}
-            onPress={() => setCameraActive(true)}
-          >
-            <Ionicons name="camera" size={20} color="#fff" />
-            <Text style={[styles.primaryText, { color: '#fff' }]}>OPEN CAMERA SCANNER</Text>
-          </Pressable>
 
-          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+          <ScrollView 
+            style={{ flex: 1 }} 
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 140 }}
+          >
             {/* PENDING CHECKPOINTS */}
             <View style={{ marginBottom: 14 }}>
               <Text style={{ color: colors.textMuted, fontSize: 13, fontWeight: '700', marginBottom: 8, letterSpacing: 0.5 }}>
@@ -451,26 +448,26 @@ export function ScanCheckpointScreen() {
                 })
               )}
             </View>
-          </ScrollView>
 
-          <View style={styles.manualBox}>
-            <Text style={styles.manualLabel}>Manual token entry</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Paste full QR payload"
-              placeholderTextColor={colors.textMuted}
-              value={manual}
-              onChangeText={setManual}
-              autoCapitalize="none"
-            />
-            <Pressable style={styles.secondary} onPress={submitManual}>
-              <Text style={styles.secondaryText}>Submit token</Text>
-            </Pressable>
-          </View>
+            <View style={styles.manualBox}>
+              <Text style={styles.manualLabel}>Manual token entry</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Paste full QR payload"
+                placeholderTextColor={colors.textMuted}
+                value={manual}
+                onChangeText={setManual}
+                autoCapitalize="none"
+              />
+              <Pressable style={styles.secondary} onPress={submitManual}>
+                <Text style={styles.secondaryText}>Submit token</Text>
+              </Pressable>
+            </View>
+          </ScrollView>
         </View>
       )}
 
-      {/* ACTION ROW & SOS FAB - ALWAYS SHOW AT BOTTOM FOR EASY ACCESS */}
+      {/* ACTION ROW — ALWAYS SHOW AT BOTTOM */}
       <View style={styles.actionRow}>
         <Pressable style={styles.actionBtn} onPress={() => navigation.navigate('Violation')}>
           <Text style={styles.actionBtnText}>Violation</Text>
@@ -483,14 +480,46 @@ export function ScanCheckpointScreen() {
         </Pressable>
       </View>
 
+      {/* ── Camera FAB — large bottom-center U-shape button for ergonomic thumb reach ── */}
+      {!cameraActive ? (
+        <Pressable
+          id="scan-camera-fab"
+          style={[styles.cameraFab, { bottom: insets.bottom + 76 }]}
+          onPress={() => setCameraActive(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Open QR camera scanner"
+        >
+          <View style={styles.cameraFabInner}>
+            <Ionicons name="scan" size={28} color="#fff" />
+          </View>
+          <Text style={styles.cameraFabText}>SCAN QR</Text>
+        </Pressable>
+      ) : null}
+
+      {/* ── SOS FAB — right side ── */}
       <Pressable
-        style={styles.sosFab}
+        style={[styles.sosFab, { bottom: insets.bottom + 76 }]}
         onPress={() => navigation.navigate('SOS')}
         accessibilityRole="button"
         accessibilityLabel="Emergency SOS"
       >
         <Text style={styles.sosFabText}>SOS</Text>
       </Pressable>
+
+      {/* ── Flashlight FAB — left side ── */}
+      {!cameraActive ? (
+        <Pressable
+          style={[styles.lightFab, { bottom: insets.bottom + 76 }]}
+          onPress={() => {
+            setTorchOn(true);
+            setCameraActive(true);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Turn on flashlight"
+        >
+          <Ionicons name="flash" size={22} color="#fff" />
+        </Pressable>
+      ) : null}
 
       {Platform.OS === 'web' ? (
         <Text style={styles.webNote}>QR scanning in Expo web may be limited; use manual token.</Text>
@@ -570,20 +599,64 @@ function createStyles(c: ThemeColors) {
     },
     actionBtnText: { color: c.textOnDark, fontSize: 13, fontWeight: '700' },
     actionBtnTextMuted: { color: c.textMuted, fontSize: 13, fontWeight: '700' },
+    /* Camera FAB — U-shape ergonomic button centered at bottom */
+    cameraFab: {
+      position: 'absolute',
+      alignSelf: 'center',
+      left: '50%',
+      marginLeft: -56,
+      width: 112,
+      alignItems: 'center',
+      zIndex: 20,
+    },
+    cameraFabInner: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: c.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: c.primary,
+      shadowOpacity: 0.55,
+      shadowOffset: { width: 0, height: 6 },
+      shadowRadius: 16,
+      elevation: 14,
+      borderWidth: 3,
+      borderColor: 'rgba(255,255,255,0.2)',
+    },
+    cameraFabText: {
+      color: c.textMuted,
+      fontSize: 10,
+      fontWeight: '800',
+      letterSpacing: 1.2,
+      marginTop: 4,
+    },
     sosFab: {
       position: 'absolute',
-      right: 20,
-      bottom: 100,
+      right: 16,
       backgroundColor: c.danger,
-      paddingHorizontal: 24,
-      paddingVertical: 16,
+      paddingHorizontal: 18,
+      paddingVertical: 14,
       borderRadius: 999,
       shadowColor: '#000',
       shadowOpacity: 0.35,
       shadowRadius: 12,
       elevation: 8,
     },
-    sosFabText: { color: '#fff', fontSize: 15, fontWeight: '900', letterSpacing: 1 },
+    sosFabText: { color: '#fff', fontSize: 14, fontWeight: '900', letterSpacing: 1 },
+    lightFab: {
+      position: 'absolute',
+      left: 16,
+      backgroundColor: 'rgba(245, 158, 11, 0.9)',
+      padding: 14,
+      borderRadius: 999,
+      shadowColor: '#000',
+      shadowOpacity: 0.35,
+      shadowRadius: 12,
+      elevation: 8,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.3)',
+    },
     cameraWrap: {
       flex: 1,
       borderRadius: 16,

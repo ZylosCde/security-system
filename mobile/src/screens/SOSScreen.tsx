@@ -37,7 +37,8 @@ export function SOSScreen() {
 
   const cancel = () => {
     cancelled.current = true;
-    navigation.navigate('Main' as any, { screen: 'Home' });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (navigation.navigate as any)('Main', { screen: 'Home' });
   };
 
   return (

@@ -856,18 +856,20 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
 
   const recordIncident = useCallback(
     (payload: { severity: string; type: string; description: string }) => {
-      if (!session) return;
       const inc = {
         id: `INC-${Date.now()}`,
-        sessionId: session.id,
+        sessionId: session?.id ?? null,
+        officerId: officer?.id ?? null,
+        deviceId: deviceBinding?.deviceId ?? null,
+        siteId: siteId ?? null,
         ...payload,
         timestamp: new Date().toISOString(),
         gps: { lat: 6.927, lng: 79.861 },
       };
-      if (isOffline) void queueEvent({ type: 'incident', payload: inc });
+      void queueEvent({ type: 'incident', payload: inc });
       void refreshPendingCount();
     },
-    [session, isOffline, refreshPendingCount]
+    [session, officer, deviceBinding, siteId, refreshPendingCount]
   );
 
   const triggerSOS = useCallback(async () => {

@@ -55,9 +55,6 @@ export async function verifyStoredBinding(
     }
     return validateHandsetImei(dbDevice.imeiNumber);
   } catch (e) {
-    if (__DEV__) {
-      return validateStoredBindingImei(binding.imeiNumber);
-    }
     const msg =
       e instanceof ApiClientError ? e.message : 'Cannot verify device registration with admin.';
     return { ok: false, message: msg };

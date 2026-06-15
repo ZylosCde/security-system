@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "mobile": "npm run start --prefix mobile"
+    "mobile": "npm run start --prefix mobile",
+    "mobile:configure": "cd mobile && npx eas-cli build:configure",
+    "mobile:build-android": "cd mobile && npx eas-cli build --platform android",
+    "mobile:build-android-local": "cd mobile && npx eas-cli build --platform android --local"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",

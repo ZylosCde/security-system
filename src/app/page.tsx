@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
-  MapPin,
   AlertTriangle,
   Clock,
   CheckCircle,
@@ -15,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { Checkpoint, PatrolSession } from "@/lib/types";
+import type { Checkpoint, PatrolSession, SOSEvent } from "@/lib/types";
 import { usePatrolStore } from "@/hooks/usePatrolStore";
 import { calculateComplianceRate } from "@/lib/routeEngine";
 import { format } from "date-fns";
@@ -81,25 +80,17 @@ function LiveMap({
 }: {
   sessions: PatrolSession[];
   checkpoints: Checkpoint[];
-  activeSOS: any[];
+  activeSOS: SOSEvent[];
 }) {
-  const [positions, setPositions] = useState(
-    sessions.map((s) => ({
-      id: s.id,
-      lat: s.currentLocation?.lat || 6.927,
-      lng: s.currentLocation?.lng || 79.861,
-    }))
-  );
-
-  useEffect(() => {
-    setPositions(
+  const positions = useMemo(
+    () =>
       sessions.map((s) => ({
         id: s.id,
         lat: s.currentLocation?.lat ?? 6.927,
         lng: s.currentLocation?.lng ?? 79.861,
-      }))
-    );
-  }, [sessions]);
+      })),
+    [sessions]
+  );
 
   const toPercent = (lat: number, lng: number) => {
     const x = ((lng - 79.85) / 0.02) * 100;
@@ -139,8 +130,8 @@ function LiveMap({
         <span>RANGE: 2.5 KM</span>
       </div>
       <div className="absolute top-3 right-4 flex flex-col items-end font-mono text-[9px] text-muted-foreground/60 tracking-wider">
-        <span>LAT CENTER: 06°55'12" N</span>
-        <span>LNG CENTER: 79°51'36" E</span>
+        <span>LAT CENTER: 06°55&apos;12&quot; N</span>
+        <span>LNG CENTER: 79°51&apos;36&quot; E</span>
       </div>
 
       {/* Checkpoint indicators */}
