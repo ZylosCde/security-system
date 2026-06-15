@@ -8,6 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -93,7 +94,11 @@ export function IncidentScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
-      {/* ── Header ── */}
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        {/* ── Header ── */}
       <View style={styles.header}>
         <Pressable
           onPress={() => navigation.goBack()}
@@ -241,6 +246,7 @@ export function IncidentScreen() {
           </View>
         </View>
       ) : null}
+      </KeyboardAvoidingView>
     </View>
   );
 }

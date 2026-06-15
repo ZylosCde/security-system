@@ -10,6 +10,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Switch,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, CommonActions } from '@react-navigation/native';
@@ -254,7 +255,7 @@ export function ScanCheckpointScreen() {
   };
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 8 }]}>
+    <KeyboardAvoidingView style={[styles.root, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 8 }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.topBar}>
         <View style={styles.topBarLeft}>
           <Text style={styles.sessionMeta} numberOfLines={1}>
@@ -524,7 +525,7 @@ export function ScanCheckpointScreen() {
       {Platform.OS === 'web' ? (
         <Text style={styles.webNote}>QR scanning in Expo web may be limited; use manual token.</Text>
       ) : null}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
