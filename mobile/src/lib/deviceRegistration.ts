@@ -5,6 +5,7 @@ import {
   getLocalDeviceImei,
   imeiValuesMatch,
   validateStoredBindingImei,
+  canVerifyHandsetImei,
 } from './deviceImei';
 
 export type DeviceRegistrationResult =
@@ -27,6 +28,9 @@ async function fetchDeviceFromDatabase(deviceId: number): Promise<ApiDevice | nu
  * Expo Go cannot read IMEI — in that case admin DB + QR match is sufficient.
  */
 async function validateHandsetImei(recordImei: string): Promise<{ ok: boolean; message: string }> {
+  if (!canVerifyHandsetImei()) {
+    return { ok: true, message: '' };
+  }
   const localImei = await getLocalDeviceImei();
 
   if (!localImei) {

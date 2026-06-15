@@ -41,6 +41,9 @@ export function canVerifyHandsetImei(): boolean {
 export async function validateStoredBindingImei(
   storedImei: string
 ): Promise<{ ok: boolean; message: string }> {
+  if (!canVerifyHandsetImei()) {
+    return { ok: true, message: '' };
+  }
   const localImei = await getLocalDeviceImei();
 
   if (!localImei) {
