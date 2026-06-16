@@ -1,4 +1,4 @@
-const BASE_URL = (process.env.EXPO_PUBLIC_API_URL || "http://localhost:3001").replace(/\/$/, "");
+const BASE_URL = "https://catalyst-security.zyloscode.com".replace(/\/$/, "");
 
 export class ApiClientError extends Error {
   constructor(
@@ -93,7 +93,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     });
   } catch {
     throw new ApiClientError(
-      `Cannot reach API at ${BASE_URL}. Check Wi‑Fi and EXPO_PUBLIC_API_URL.`,
+      `Cannot reach API at ${BASE_URL}. Check Wi‑Fi and network access.`,
       0
     );
   }
