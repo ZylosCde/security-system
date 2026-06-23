@@ -1,0 +1,7 @@
+node_modules
+.next
+dist
+.vscode
+.env
+.git
+Dockerfile*

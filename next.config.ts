@@ -6,6 +6,7 @@ const apiBackend =
   "https://catalyst-security.zyloscode.com";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   experimental: {
     optimizePackageImports: [
       "lucide-react",
