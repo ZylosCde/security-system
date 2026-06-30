@@ -13,6 +13,20 @@ import { toast } from "sonner";
 
 export default function ViolationsPage() {
   const { violations, resolveViolation, sessions, officers } = usePatrolStore();
+  const [visibleCount, setVisibleCount] = React.useState(15);
+
+  React.useEffect(() => {
+    const handleScroll = () => {
+      if (
+        window.innerHeight + document.documentElement.scrollTop >=
+        document.documentElement.offsetHeight - 100
+      ) {
+        setVisibleCount((prev) => prev + 15);
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const handleAcknowledge = (id: string) => {
     resolveViolation(id);
@@ -42,7 +56,7 @@ export default function ViolationsPage() {
             {violations.length === 0 && (
               <div className="py-16 text-center text-muted-foreground">No violations recorded</div>
             )}
-            {violations.map((v) => {
+            {violations.slice(0, visibleCount).map((v) => {
               const session = sessions.find((s) => s.id === v.sessionId);
               const officer = officers.find((o) => o.id === session?.officerId);
               return (
@@ -85,6 +99,11 @@ export default function ViolationsPage() {
               );
             })}
           </div>
+          {violations.length > visibleCount && (
+            <div className="py-4 text-center text-xs text-muted-foreground border-t border-border">
+              Showing {Math.min(visibleCount, violations.length)} of {violations.length} violations. Scroll down to load more...
+            </div>
+          )}
         </Card>
       </div>
     </CommandLayout>

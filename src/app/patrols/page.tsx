@@ -21,10 +21,24 @@ import { cn } from "@/lib/utils";
 
 export default function PatrolsPage() {
   const { sessions, loading, refreshPatrols } = usePatrolStore();
+  const [visibleCount, setVisibleCount] = React.useState(15);
 
   useEffect(() => {
     void refreshPatrols();
   }, [refreshPatrols]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (
+        window.innerHeight + document.documentElement.scrollTop >=
+        document.documentElement.offsetHeight - 100
+      ) {
+        setVisibleCount((prev) => prev + 15);
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
     <CommandLayout
@@ -79,7 +93,7 @@ export default function PatrolsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                sessions.map((s) => {
+                sessions.slice(0, visibleCount).map((s) => {
                   const pct =
                     s.progressPercent ??
                     (s.totalCheckpoints > 0
@@ -117,6 +131,11 @@ export default function PatrolsPage() {
               )}
             </TableBody>
           </Table>
+          {sessions.length > visibleCount && (
+            <div className="py-4 text-center text-xs text-muted-foreground border-t border-border">
+              Showing {Math.min(visibleCount, sessions.length)} of {sessions.length} patrols. Scroll down to load more...
+            </div>
+          )}
         </Card>
       </div>
     </CommandLayout>

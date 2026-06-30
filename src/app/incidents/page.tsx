@@ -12,6 +12,20 @@ import { cn } from "@/lib/utils";
 
 export default function IncidentsPage() {
   const { incidents, sessions, officers } = usePatrolStore();
+  const [visibleCount, setVisibleCount] = React.useState(15);
+
+  React.useEffect(() => {
+    const handleScroll = () => {
+      if (
+        window.innerHeight + document.documentElement.scrollTop >=
+        document.documentElement.offsetHeight - 100
+      ) {
+        setVisibleCount((prev) => prev + 15);
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const getSeverityColor = (sev: string) => {
     if (sev === "Critical")
@@ -44,7 +58,7 @@ export default function IncidentsPage() {
         {incidents.length === 0 && (
           <div className="py-12 text-center text-muted-foreground">No incidents reported</div>
         )}
-        {incidents.map((inc) => {
+        {incidents.slice(0, visibleCount).map((inc) => {
           const session = sessions.find((s) => s.id === inc.sessionId);
           const officer = officers.find((o) => o.id === session?.officerId);
           return (
@@ -67,6 +81,11 @@ export default function IncidentsPage() {
             </Card>
           );
         })}
+        {incidents.length > visibleCount && (
+          <div className="py-4 text-center text-xs text-muted-foreground">
+            Showing {Math.min(visibleCount, incidents.length)} of {incidents.length} incidents. Scroll down to load more...
+          </div>
+        )}
       </div>
     </CommandLayout>
   );

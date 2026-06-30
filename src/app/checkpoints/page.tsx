@@ -24,12 +24,27 @@ export default function CheckpointsPage() {
   const { checkpoints, sites, loading, addCheckpoint } = usePatrolStore();
   const { canWrite } = useAuth();
   const [showAdd, setShowAdd] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(15);
   const [qrCheckpoint, setQrCheckpoint] = useState<{
     name: string;
     code: string;
     dataUrl: string;
     token: string;
   } | null>(null);
+
+  React.useEffect(() => {
+    const handleScroll = () => {
+      if (
+        window.innerHeight + document.documentElement.scrollTop >=
+        document.documentElement.offsetHeight - 100
+      ) {
+        setVisibleCount((prev) => prev + 15);
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   const [form, setForm] = useState({
     name: "",
     code: "",
@@ -130,7 +145,7 @@ export default function CheckpointsPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  checkpoints.map((cp) => (
+                  checkpoints.slice(0, visibleCount).map((cp) => (
                     <TableRow key={cp.id}>
                       <TableCell className="pl-6 font-medium">{cp.name}</TableCell>
                       <TableCell>
@@ -166,6 +181,11 @@ export default function CheckpointsPage() {
                 )}
               </TableBody>
             </Table>
+            {checkpoints.length > visibleCount && (
+              <div className="py-4 text-center text-xs text-muted-foreground border-t border-border">
+                Showing {Math.min(visibleCount, checkpoints.length)} of {checkpoints.length} checkpoints. Scroll down to load more...
+              </div>
+            )}
           </Card>
 
           <div className="px-1 font-mono text-xs text-muted-foreground">

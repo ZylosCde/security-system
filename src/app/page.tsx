@@ -251,6 +251,38 @@ const STAT_CONFIG = [
   },
 ];
 
+const playSOSAlertSound = () => {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    
+    // First tone (low pitch warning synth beep)
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.frequency.setValueAtTime(780, ctx.currentTime);
+    gain1.gain.setValueAtTime(0.06, ctx.currentTime);
+    gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+    osc1.start();
+    osc1.stop(ctx.currentTime + 0.15);
+
+    // Second tone (slightly higher pitch, offset)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.frequency.setValueAtTime(960, ctx.currentTime + 0.08);
+    gain2.gain.setValueAtTime(0.06, ctx.currentTime + 0.08);
+    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.23);
+    osc2.start(ctx.currentTime + 0.08);
+    osc2.stop(ctx.currentTime + 0.23);
+  } catch (e) {
+    console.warn("Failed to play audio alert:", e);
+  }
+};
+
 export default function DigitalGUARD360CommandCenter() {
   const {
     sessions,
@@ -268,9 +300,68 @@ export default function DigitalGUARD360CommandCenter() {
   } = usePatrolStore();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showSimulator, setShowSimulator] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
   const alertsRef = useRef<HTMLDivElement>(null);
 
   const activeSessions = sessions.filter((s) => s.status === "in-progress");
+
+  const activityLogs = useMemo(() => {
+    const logs: { id: string; time: Date; message: string; type: "info" | "success" | "warning" | "error" }[] = [];
+    
+    for (const s of sessions) {
+      if (s.startTime) {
+        logs.push({
+          id: `patrol-start-${s.id}`,
+          time: new Date(s.startTime),
+          message: `Patrol #${s.id} started by ${s.officerName ?? `Officer #${s.officerId}`}`,
+          type: "info",
+        });
+      }
+      if (s.status === "completed") {
+        logs.push({
+          id: `patrol-end-${s.id}`,
+          time: new Date(),
+          message: `Patrol #${s.id} completed successfully`,
+          type: "success",
+        });
+      }
+    }
+    
+    for (const v of activeViolations) {
+      logs.push({
+        id: `violation-${v.id}`,
+        time: new Date(v.timestamp),
+        message: `Violation flagged: ${v.reason}`,
+        type: "warning",
+      });
+    }
+    
+    for (const s of activeSOS) {
+      if (s.status === "active") {
+        logs.push({
+          id: `sos-${s.id}`,
+          time: new Date(s.triggeredAt),
+          message: `EMERGENCY: SOS triggered by Officer #${s.officerId}`,
+          type: "error",
+        });
+      }
+    }
+    
+    return logs.sort((a, b) => b.time.getTime() - a.time.getTime()).slice(0, 8);
+  }, [sessions, activeViolations, activeSOS]);
+
+  useEffect(() => {
+    const activeAlerts = activeSOS.filter((s) => s.status === "active");
+    if (activeAlerts.length === 0 || isMuted) return;
+
+    const interval = setInterval(() => {
+      playSOSAlertSound();
+    }, 4000);
+
+    playSOSAlertSound();
+
+    return () => clearInterval(interval);
+  }, [activeSOS, isMuted]);
 
   const scrollToAlerts = () => {
     alertsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -347,7 +438,19 @@ export default function DigitalGUARD360CommandCenter() {
               <Clock className="h-3.5 w-3.5 shrink-0" />
               <span className="tabular-nums">{format(currentTime, "HH:mm:ss")}</span>
             </div>
-            <Button variant="outline" size="sm" className="gap-2" onClick={scrollToAlerts}>
+            <Button
+              variant={isMuted ? "outline" : "secondary"}
+              size="sm"
+              className={cn(
+                "gap-1.5 transition-all duration-300 rounded-2xl",
+                !isMuted && "border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10",
+                isMuted && stats.openSOS > 0 && "border-red-500/40 text-red-600 dark:text-red-400 animate-pulse bg-red-500/10"
+              )}
+              onClick={() => setIsMuted(!isMuted)}
+            >
+              {isMuted ? "🔊 Unmute Audio" : "🔇 Mute Audio"}
+            </Button>
+            <Button variant="outline" size="sm" className="gap-2 rounded-2xl" onClick={scrollToAlerts}>
               <Bell className="h-4 w-4" /> Alerts{" "}
               <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px] tabular-nums">
                 {stats.openSOS + stats.pendingViolations}
@@ -509,6 +612,36 @@ export default function DigitalGUARD360CommandCenter() {
                   </Card>
                 );
               })}
+              
+              <div className="mt-6">
+                <Card className="card-premium p-4 sm:p-6 bg-black/40 border-indigo-500/20 font-mono">
+                  <div className="flex items-center justify-between mb-4 border-b border-border/40 pb-2">
+                    <div className="text-sm font-semibold tracking-wider text-indigo-400 flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-indigo-500 animate-ping" /> LIVE TELEMETRY FEED
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">SECURE LINK · 256-BIT</div>
+                  </div>
+                  <div className="space-y-2 h-[220px] overflow-y-auto scrollbar-none text-[11px]">
+                    {activityLogs.length === 0 ? (
+                      <div className="text-muted-foreground text-center py-12">Listening for incoming telemetry...</div>
+                    ) : (
+                      activityLogs.map((log) => (
+                        <div key={log.id} className="flex gap-2 items-start py-0.5 border-b border-white/[0.02] last:border-0 hover:bg-white/[0.01]">
+                          <span className="text-muted-foreground">[{format(log.time, "HH:mm:ss")}]</span>
+                          <span className={cn(
+                            log.type === "info" && "text-blue-400",
+                            log.type === "success" && "text-emerald-400",
+                            log.type === "warning" && "text-amber-500",
+                            log.type === "error" && "text-red-500 font-bold"
+                          )}>
+                            {log.message}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </Card>
+              </div>
             </div>
           </div>
 
