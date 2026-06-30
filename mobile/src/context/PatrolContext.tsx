@@ -45,6 +45,7 @@ import { getCurrentGps } from '../lib/location';
 const STORAGE_AUTH = 'aegis_auth_session';
 const STORAGE_INCIDENTS = 'aegis_patrol_incidents';
 const STORAGE_SOS_ACTIVE = 'aegis_sos_active';
+const STORAGE_LOCAL_COMPLETED = 'aegis_patrol_local_completed';
 
 type CheckpointStatus = 'pending' | 'current' | 'completed';
 
@@ -160,6 +161,12 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
   const [patrolIncidents, setPatrolIncidents] = useState<
     { id: string; description: string; createdAt: string; checkpointName?: string }[]
   >([]);
+  const [localCompletedIds, setLocalCompletedIds] = useState<string[]>([]);
+
+  const updateLocalCompletedIds = useCallback(async (ids: string[]) => {
+    setLocalCompletedIds(ids);
+    await AsyncStorage.setItem(STORAGE_LOCAL_COMPLETED, JSON.stringify(ids));
+  }, []);
 
   const resolveApiDeviceId = useCallback(
     (binding: DeviceBinding | null, assignmentDeviceId?: number): number | undefined => {
@@ -182,10 +189,11 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const applyPatrolState = useCallback(
-    (state: Awaited<ReturnType<typeof getPatrolState>>) => {
+    (state: Awaited<ReturnType<typeof getPatrolState>>, customLocalIds?: string[]) => {
       const siteLabel = state.site.name;
       setSiteName(siteLabel);
-      setRoute(apiStateToRoute(state, siteLabel));
+      const newRoute = apiStateToRoute(state, siteLabel);
+      setRoute(newRoute);
       setCheckpoints(
         apiCheckpointsToCheckpoints(
           state.checkpoints.map((c) => ({
@@ -200,17 +208,37 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
           siteLabel
         )
       );
-      setScannedIds(visitedIdsFromState(state));
-      setCheckpointStatusById(statusMapFromState(state));
-      setNextCheckpointId(
-        state.nextCheckpointId != null ? String(state.nextCheckpointId) : null
-      );
-      setProgressPercent(state.progressPercent);
+
+      const activeLocalIds = customLocalIds ?? localCompletedIds;
+      const serverIds = visitedIdsFromState(state);
+      const mergedIds = Array.from(new Set([...serverIds, ...activeLocalIds]));
+      setScannedIds(mergedIds);
+
+      const statusMap = statusMapFromState(state);
+      for (const id of activeLocalIds) {
+        statusMap[id] = 'completed';
+      }
+      setCheckpointStatusById(statusMap);
+
+      // Find the next expected checkpoint in route order (first unscanned)
+      const nextUnscanned = newRoute.checkpoints.find((id) => !mergedIds.includes(id)) ?? null;
+      setNextCheckpointId(nextUnscanned);
+
+      const total = newRoute.checkpoints.length;
+      const pct = total > 0 ? Math.round((mergedIds.length / total) * 100) : 0;
+      setProgressPercent(pct);
+
       if (officer) {
-        setSession(apiStateToSession(state, officer.id, deviceId));
+        const baseSession = apiStateToSession(state, officer.id, deviceId);
+        const allDone = total > 0 && mergedIds.length >= total;
+        setSession({
+          ...baseSession,
+          checkpointsCompleted: mergedIds.length,
+          status: allDone ? 'completed' : baseSession.status,
+        });
       }
     },
-    [officer, deviceId]
+    [officer, deviceId, localCompletedIds]
   );
 
   const loadSiteData = useCallback(async (sid: number, oid: number, did: string) => {
@@ -222,15 +250,44 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
       const siteLabel = patrolState.site.name;
       setSiteName(siteLabel);
       setCheckpoints(apiCheckpointsToCheckpoints(cpRes.checkpoints, siteLabel));
-      setRoute(apiStateToRoute(patrolState, siteLabel));
-      setScannedIds(visitedIdsFromState(patrolState));
-      setCheckpointStatusById(statusMapFromState(patrolState));
-      setNextCheckpointId(
-        patrolState.nextCheckpointId != null ? String(patrolState.nextCheckpointId) : null
-      );
-      setProgressPercent(patrolState.progressPercent);
+      const newRoute = apiStateToRoute(patrolState, siteLabel);
+      setRoute(newRoute);
+
+      const localCompRaw = await AsyncStorage.getItem(STORAGE_LOCAL_COMPLETED);
+      let activeLocalIds: string[] = [];
+      if (localCompRaw) {
+        try {
+          activeLocalIds = JSON.parse(localCompRaw);
+        } catch {
+          activeLocalIds = [];
+        }
+      }
+
+      const serverIds = visitedIdsFromState(patrolState);
+      const mergedIds = Array.from(new Set([...serverIds, ...activeLocalIds]));
+      setScannedIds(mergedIds);
+
+      const statusMap = statusMapFromState(patrolState);
+      for (const id of activeLocalIds) {
+        statusMap[id] = 'completed';
+      }
+      setCheckpointStatusById(statusMap);
+
+      const nextUnscanned = newRoute.checkpoints.find((id) => !mergedIds.includes(id)) ?? null;
+      setNextCheckpointId(nextUnscanned);
+
+      const total = newRoute.checkpoints.length;
+      const pct = total > 0 ? Math.round((mergedIds.length / total) * 100) : 0;
+      setProgressPercent(pct);
+
       if (patrolState.patrol.status === 'IN_PROGRESS') {
-        setSession(apiStateToSession(patrolState, String(oid), did));
+        const baseSession = apiStateToSession(patrolState, String(oid), did);
+        const allDone = total > 0 && mergedIds.length >= total;
+        setSession({
+          ...baseSession,
+          checkpointsCompleted: mergedIds.length,
+          status: allDone ? 'completed' : baseSession.status,
+        });
       } else {
         setSession(null);
       }
@@ -368,6 +425,15 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
         }
         setDeviceBindingState(binding);
         applyBindingToDeviceId(binding);
+
+        const localCompRaw = await AsyncStorage.getItem(STORAGE_LOCAL_COMPLETED);
+        if (localCompRaw) {
+          try {
+            setLocalCompletedIds(JSON.parse(localCompRaw));
+          } catch {
+            setLocalCompletedIds([]);
+          }
+        }
 
         const raw = await AsyncStorage.getItem(STORAGE_AUTH);
         if (raw) {
@@ -616,13 +682,14 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
         siteId,
         deviceId: apiDevId,
       });
-      applyPatrolState(res);
+      await updateLocalCompletedIds([]);
+      applyPatrolState(res, []);
       return { ok: true, message: res.message ?? 'Patrol started.' };
     } catch (e) {
       const msg = e instanceof ApiClientError ? e.message : 'Could not start patrol';
       return { ok: false, message: msg };
     }
-  }, [officer, siteId, deviceBinding, auth, resolveApiDeviceId, applyPatrolState]);
+  }, [officer, siteId, deviceBinding, auth, resolveApiDeviceId, applyPatrolState, updateLocalCompletedIds]);
 
   const startPatrolFromOfficerQr = useCallback(
     async (qrData: string) => {
@@ -656,7 +723,8 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
           siteId: verified.assignment.siteId,
           deviceId: binding.deviceId,
         });
-        applyPatrolState(res);
+        await updateLocalCompletedIds([]);
+        applyPatrolState(res, []);
         setApiError(null);
         return {
           ok: true,
@@ -673,6 +741,7 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
       applyBindingToDeviceId,
       loadSiteData,
       applyPatrolState,
+      updateLocalCompletedIds,
     ]
   );
 
@@ -680,6 +749,8 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setScannedIds([]);
     setSosBroadcasting(false);
+    void AsyncStorage.removeItem(STORAGE_LOCAL_COMPLETED);
+    setLocalCompletedIds([]);
     void refreshPatrolState();
   }, [refreshPatrolState]);
 
@@ -697,6 +768,8 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
     setRoute(emptyRoute);
     setSosBroadcasting(false);
     void AsyncStorage.removeItem(STORAGE_AUTH);
+    void AsyncStorage.removeItem(STORAGE_LOCAL_COMPLETED);
+    setLocalCompletedIds([]);
     if (deviceBinding) {
       applyBindingToDeviceId(deviceBinding);
     } else {
@@ -726,6 +799,8 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
     setRoute(emptyRoute);
     setSosBroadcasting(false);
     void AsyncStorage.removeItem(STORAGE_AUTH);
+    void AsyncStorage.removeItem(STORAGE_LOCAL_COMPLETED);
+    setLocalCompletedIds([]);
     if (deviceBinding) {
       applyBindingToDeviceId(deviceBinding);
     } else {
@@ -754,13 +829,19 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
       if (isOffline) {
         await queueEvent({ type: 'scan', payload });
         await refreshPendingCount();
+        const newLocal = localCompletedIds.includes(cp.id) ? localCompletedIds : [...localCompletedIds, cp.id];
+        await updateLocalCompletedIds(newLocal);
+
         const newScanned = scannedIds.includes(cp.id) ? scannedIds : [...scannedIds, cp.id];
         setScannedIds(newScanned);
         setCheckpointStatusById((prev) => ({ ...prev, [cp.id]: 'completed' }));
         const total = route.checkpoints.length;
         const pct = total > 0 ? Math.round((newScanned.length / total) * 100) : 0;
         setProgressPercent(pct);
-        setNextCheckpointId(null);
+
+        const nextUnscanned = route.checkpoints.find((id) => !newScanned.includes(id)) ?? null;
+        setNextCheckpointId(nextUnscanned);
+
         const allDone = total > 0 && newScanned.length >= total;
         setSession((prev) =>
           prev
@@ -780,12 +861,16 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
 
       try {
         const res = await recordPatrolVisit(payload);
-        applyPatrolState(res);
+        const newLocal = localCompletedIds.includes(cp.id) ? localCompletedIds : [...localCompletedIds, cp.id];
+        await updateLocalCompletedIds(newLocal);
+        applyPatrolState(res, newLocal);
         await refreshPendingCount();
+
         const total = route.checkpoints.length;
+        const mergedIds = Array.from(new Set([...visitedIdsFromState(res), ...newLocal]));
         const done =
           res.patrol.status === 'COMPLETED' ||
-          (total > 0 && res.completedCount >= total);
+          (total > 0 && mergedIds.length >= total);
         return {
           ok: true,
           message: res.message ?? (done ? 'Patrol completed.' : 'Checkpoint completed.'),
@@ -797,13 +882,19 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
           // Bypass route order violation check by marking it as completed locally and queuing it
           await queueEvent({ type: 'scan', payload });
           await refreshPendingCount();
+          const newLocal = localCompletedIds.includes(checkpointId) ? localCompletedIds : [...localCompletedIds, checkpointId];
+          await updateLocalCompletedIds(newLocal);
+
           const newScanned = scannedIds.includes(checkpointId) ? scannedIds : [...scannedIds, checkpointId];
           setScannedIds(newScanned);
           setCheckpointStatusById((prev) => ({ ...prev, [checkpointId]: 'completed' }));
           const total = route.checkpoints.length;
           const pct = total > 0 ? Math.round((newScanned.length / total) * 100) : 0;
           setProgressPercent(pct);
-          setNextCheckpointId(null);
+
+          const nextUnscanned = route.checkpoints.find((id) => !newScanned.includes(id)) ?? null;
+          setNextCheckpointId(nextUnscanned);
+
           const allDone = total > 0 && newScanned.length >= total;
           setSession((prev) =>
             prev
@@ -829,10 +920,12 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
       checkpoints,
       isOffline,
       scannedIds,
-      route.checkpoints.length,
+      route.checkpoints,
       siteId,
       applyPatrolState,
       refreshPendingCount,
+      localCompletedIds,
+      updateLocalCompletedIds,
     ]
   );
 
