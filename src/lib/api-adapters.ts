@@ -28,6 +28,7 @@ export function apiDeviceToDevice(d: ApiDevice): Device {
     lastSync: new Date().toISOString(),
     registeredDate: new Date().toISOString().slice(0, 10),
     siteId: d.siteId,
+    siteName: d.site?.name,
   };
 }
 

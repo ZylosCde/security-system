@@ -143,6 +143,7 @@ export default function DevicesPage() {
                 <TableHead className="pl-6">Device</TableHead>
                 <TableHead>IMEI</TableHead>
                 <TableHead>Model</TableHead>
+                <TableHead>Site</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right pr-6">QR</TableHead>
               </TableRow>
@@ -150,7 +151,7 @@ export default function DevicesPage() {
             <TableBody>
               {loading && devices.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-12 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="py-12 text-center text-muted-foreground">
                     Loading…
                   </TableCell>
                 </TableRow>
@@ -160,6 +161,7 @@ export default function DevicesPage() {
                     <TableCell className="pl-6 font-mono font-medium">{device.id}</TableCell>
                     <TableCell className="font-mono text-sm">{device.imei}</TableCell>
                     <TableCell>{device.model}</TableCell>
+                    <TableCell>{device.siteName ?? (device.siteId ? `Site #${device.siteId}` : "Unassigned")}</TableCell>
                     <TableCell>
                       <Badge className={cn("border", getStatusColor(device.status))}>
                         {device.status.toUpperCase()}

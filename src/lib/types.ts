@@ -18,6 +18,7 @@ export interface Device {
   battery?: number;
   signal?: number;
   siteId?: number;
+  siteName?: string;
 }
 
 export interface Officer {
