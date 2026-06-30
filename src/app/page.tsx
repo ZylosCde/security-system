@@ -283,7 +283,7 @@ const playSOSAlertSound = () => {
   }
 };
 
-export default function DigitalGUARD360CommandCenter() {
+export default function CatalystDigitalCommandCenter() {
   const {
     sessions,
     checkpoints,

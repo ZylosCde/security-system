@@ -138,7 +138,7 @@ function SidebarBrand() {
           <Shield className="h-5 w-5" />
         </div>
         <div className="min-w-0">
-          <div className="text-lg font-semibold tracking-tight">DigitalGUARD360</div>
+          <div className="text-lg font-semibold tracking-tight">CatalystDigital</div>
           <div className="-mt-0.5 text-[10px] text-muted-foreground">COMMAND CENTER</div>
         </div>
       </div>
@@ -200,7 +200,7 @@ export function CommandLayout({ header, headerActions, children }: CommandLayout
           >
             <Menu className="size-4" />
           </Button>
-          <span className="truncate font-semibold">DigitalGUARD360</span>
+          <span className="truncate font-semibold">CatalystDigital</span>
         </div>
 
         <div className="flex min-h-0 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border bg-background/80 px-4 py-3 backdrop-blur-xl sm:h-16 sm:px-8 sm:py-0">

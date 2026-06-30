@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "DigitalGUARD360",
-    "slug": "digitalguard360-mobile",
+    "name": "CatalystDigital",
+    "slug": "catalystdigital-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.digitalguard360mobile",
+      "bundleIdentifier": "com.anonymous.catalystdigitalmobile",
       "infoPlist": {
         "UIBackgroundModes": [
           "location",
@@ -39,7 +39,7 @@
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
       ],
-      "package": "com.anonymous.digitalguard360mobile"
+      "package": "com.anonymous.catalystdigitalmobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -48,13 +48,13 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow DigitalGUARD360 to scan checkpoint QR codes."
+          "cameraPermission": "Allow CatalystDigital to scan checkpoint QR codes."
         }
       ],
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Allow DigitalGUARD360 to attach your location to SOS and patrol reports."
+          "locationWhenInUsePermission": "Allow CatalystDigital to attach your location to SOS and patrol reports."
         }
       ],
       "expo-localization"

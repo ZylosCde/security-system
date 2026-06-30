@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DigitalGUARD360 | Command Center",
+  title: "CatalystDigital | Command Center",
   description: "Enterprise Patrol Management System — Real-time Security Operations Platform",
   icons: {
     icon: "/favicon.ico",

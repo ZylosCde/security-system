@@ -51,7 +51,7 @@ export function SplashScreen() {
       <View style={styles.logo}>
         <Ionicons name="shield-checkmark" size={36} color={colors.onPrimary} />
       </View>
-      <Text style={styles.wordmark}>DigitalGUARD360</Text>
+      <Text style={styles.wordmark}>CatalystDigital</Text>
       <Text style={styles.sub}>Field operations</Text>
       <ActivityIndicator size="small" color={colors.primary} style={styles.loader} />
     </View>

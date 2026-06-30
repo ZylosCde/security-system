@@ -150,7 +150,7 @@ export function DashboardScreen() {
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
         <View style={styles.headerLeft}>
           <Text style={styles.headerGreeting}>
-            {officer ? `Hello, ${firstName}` : 'DigitalGUARD360'}
+            {officer ? `Hello, ${firstName}` : 'CatalystDigital'}
           </Text>
           <Text style={styles.headerMeta}>
             {officer?.name ??

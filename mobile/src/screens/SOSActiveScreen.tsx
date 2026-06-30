@@ -101,7 +101,7 @@ export function SOSActiveScreen() {
 
       <View style={styles.brand}>
         <Ionicons name="shield-checkmark" size={16} color={c.textMuted} />
-        <Text style={styles.brandTxt}> DIGITALGUARD360</Text>
+        <Text style={styles.brandTxt}> CATALYSTDIGITAL</Text>
       </View>
       <Text style={styles.secure}>Secure protocol — encrypted channel (demo)</Text>
     </View>
