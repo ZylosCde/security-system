@@ -193,9 +193,9 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
       const siteLabel = state.site.name;
       setSiteName(siteLabel);
       const newRoute = apiStateToRoute(state, siteLabel);
-      setRoute(newRoute);
-      setCheckpoints(
-        apiCheckpointsToCheckpoints(
+      let currentCheckpoints = checkpoints;
+      if (checkpoints.length === 0 || !checkpoints.every((c) => c.premises === siteLabel)) {
+        currentCheckpoints = apiCheckpointsToCheckpoints(
           state.checkpoints.map((c) => ({
             id: c.id,
             name: c.name,
@@ -206,8 +206,13 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
             site: state.site,
           })),
           siteLabel
-        )
-      );
+        );
+        setCheckpoints(currentCheckpoints);
+      }
+
+      const allCpIds = currentCheckpoints.map((c) => String(c.id));
+      newRoute.checkpoints = Array.from(new Set([...newRoute.checkpoints, ...allCpIds]));
+      setRoute(newRoute);
 
       const activeLocalIds = customLocalIds ?? localCompletedIds;
       const serverIds = visitedIdsFromState(state);
@@ -251,6 +256,8 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
       setSiteName(siteLabel);
       setCheckpoints(apiCheckpointsToCheckpoints(cpRes.checkpoints, siteLabel));
       const newRoute = apiStateToRoute(patrolState, siteLabel);
+      const allCpIds = cpRes.checkpoints.map((c) => String(c.id));
+      newRoute.checkpoints = Array.from(new Set([...newRoute.checkpoints, ...allCpIds]));
       setRoute(newRoute);
 
       const localCompRaw = await AsyncStorage.getItem(STORAGE_LOCAL_COMPLETED);
@@ -668,15 +675,70 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
     }
   }, [officer, siteId, applyPatrolState]);
 
+  const startLocalPatrolSession = useCallback(
+    (
+      sid: number,
+      off: Officer,
+      did: string,
+      allCheckpoints: Checkpoint[]
+    ) => {
+      const sessionId = `local-ps-${Date.now()}`;
+      const newSession: PatrolSession = {
+        id: sessionId,
+        deviceId: did,
+        officerId: off.id,
+        startTime: new Date().toISOString(),
+        status: 'in-progress',
+        checkpointsCompleted: 0,
+        totalCheckpoints: allCheckpoints.length,
+      };
+
+      const localRoute: Route = {
+        id: `local-site-${sid}`,
+        name: siteName ?? `Site #${sid}`,
+        checkpoints: allCheckpoints.map((c) => c.id),
+        expectedDuration: 60,
+      };
+
+      setRoute(localRoute);
+      setScannedIds([]);
+
+      const statusMap: Record<string, CheckpointStatus> = {};
+      for (const cp of allCheckpoints) {
+        statusMap[cp.id] = 'pending';
+      }
+      setCheckpointStatusById(statusMap);
+
+      if (allCheckpoints[0]) {
+        setNextCheckpointId(allCheckpoints[0].id);
+      } else {
+        setNextCheckpointId(null);
+      }
+
+      setProgressPercent(0);
+      setSession(newSession);
+      setIsOffline(true);
+    },
+    [siteName]
+  );
+
   const beginPatrol = useCallback(async () => {
     if (!officer || siteId == null) {
       return { ok: false, message: 'No site assignment. Contact admin.' };
     }
+    const apiDevId = resolveApiDeviceId(
+      deviceBinding,
+      auth?.assignment?.deviceId
+    );
+    if (apiDevId != null) {
+      try {
+        await apiAssignDevice(apiDevId, Number(officer.id));
+      } catch (e) {
+        console.warn('Auto-assigning device to officer failed in beginPatrol:', e);
+      }
+    }
+
     try {
-      const apiDevId = resolveApiDeviceId(
-        deviceBinding,
-        auth?.assignment?.deviceId
-      );
       const res = await apiStartPatrol({
         officerId: Number(officer.id),
         siteId,
@@ -686,10 +748,21 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
       applyPatrolState(res, []);
       return { ok: true, message: res.message ?? 'Patrol started.' };
     } catch (e) {
-      const msg = e instanceof ApiClientError ? e.message : 'Could not start patrol';
-      return { ok: false, message: msg };
+      await updateLocalCompletedIds([]);
+      startLocalPatrolSession(siteId, officer, apiDevId != null ? String(apiDevId) : '', checkpoints);
+      return { ok: true, message: 'Patrol started locally.' };
     }
-  }, [officer, siteId, deviceBinding, auth, resolveApiDeviceId, applyPatrolState, updateLocalCompletedIds]);
+  }, [
+    officer,
+    siteId,
+    deviceBinding,
+    auth,
+    resolveApiDeviceId,
+    applyPatrolState,
+    updateLocalCompletedIds,
+    checkpoints,
+    startLocalPatrolSession,
+  ]);
 
   const startPatrolFromOfficerQr = useCallback(
     async (qrData: string) => {
@@ -718,6 +791,12 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
       await loadSiteData(verified.assignment.siteId, verified.officer.id, did);
 
       try {
+        await apiAssignDevice(binding.deviceId, Number(verified.officer.id));
+      } catch (e) {
+        console.warn('Auto-assigning device to officer failed in startPatrolFromOfficerQr:', e);
+      }
+
+      try {
         const res = await apiStartPatrol({
           officerId: verified.officer.id,
           siteId: verified.assignment.siteId,
@@ -731,8 +810,18 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
           message: `Welcome, ${verified.officer.officerName}. Scan checkpoints in any order.`,
         };
       } catch (e) {
-        const msg = e instanceof ApiClientError ? e.message : 'Could not start patrol';
-        return { ok: false, message: msg };
+        await updateLocalCompletedIds([]);
+        startLocalPatrolSession(
+          verified.assignment.siteId,
+          apiOfficerToOfficer(verified.officer),
+          did,
+          checkpoints
+        );
+        setApiError(null);
+        return {
+          ok: true,
+          message: `Welcome, ${verified.officer.officerName}. Patrol started locally.`,
+        };
       }
     },
     [
@@ -742,6 +831,8 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
       loadSiteData,
       applyPatrolState,
       updateLocalCompletedIds,
+      checkpoints,
+      startLocalPatrolSession,
     ]
   );
 
