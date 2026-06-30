@@ -146,6 +146,11 @@ export function parseNicFromPayload(payload: string): string | null {
   if (NIC_PATTERN.test(trimmed)) {
     return trimmed.toUpperCase();
   }
+  // Allow any alphanumeric string between 3 and 20 chars for manual entry / other NIC formats
+  const isAlphanumeric = /^[a-zA-Z0-9]+$/.test(trimmed);
+  if (isAlphanumeric && trimmed.length >= 3 && trimmed.length <= 20) {
+    return trimmed.toUpperCase();
+  }
   return null;
 }
 

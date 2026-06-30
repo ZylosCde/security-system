@@ -235,24 +235,6 @@ export function ScanCheckpointScreen() {
 
   const scanningActive = phase === 'scanning';
 
-  const confirmEndPatrol = () => {
-    if (completed < total) {
-      Alert.alert(
-        'Patrol incomplete',
-        `Complete all ${total} checkpoints before ending. (${completed}/${total} done)`
-      );
-      return;
-    }
-    Alert.alert('End patrol?', 'All checkpoints are done. Sign out and return home?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Finish',
-        onPress: () => {
-          void completePatrolAndSignOut().then(goHome);
-        },
-      },
-    ]);
-  };
 
   return (
     <KeyboardAvoidingView style={[styles.root, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 8 }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -475,9 +457,6 @@ export function ScanCheckpointScreen() {
         </Pressable>
         <Pressable style={styles.actionBtn} onPress={() => navigation.navigate('Incident')}>
           <Text style={styles.actionBtnText}>Incident</Text>
-        </Pressable>
-        <Pressable style={styles.actionBtn} onPress={confirmEndPatrol}>
-          <Text style={styles.actionBtnTextMuted}>End</Text>
         </Pressable>
       </View>
 

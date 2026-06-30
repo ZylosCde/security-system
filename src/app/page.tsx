@@ -251,7 +251,7 @@ const STAT_CONFIG = [
   },
 ];
 
-export default function AegisCommandCenter() {
+export default function DigitalGUARD360CommandCenter() {
   const {
     sessions,
     checkpoints,

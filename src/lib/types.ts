@@ -17,6 +17,7 @@ export interface Device {
   registeredDate: string;
   battery?: number;
   signal?: number;
+  siteId?: number;
 }
 
 export interface Officer {
@@ -106,6 +107,7 @@ export interface PatrolSession {
   violations: number;
   officerName?: string;
   siteName?: string;
+  siteId?: number;
   deviceName?: string;
   progressPercent?: number;
 }

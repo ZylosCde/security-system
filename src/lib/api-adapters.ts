@@ -27,6 +27,7 @@ export function apiDeviceToDevice(d: ApiDevice): Device {
     status: "active",
     lastSync: new Date().toISOString(),
     registeredDate: new Date().toISOString().slice(0, 10),
+    siteId: d.siteId,
   };
 }
 
@@ -72,6 +73,7 @@ export function apiPatrolListToSession(p: ApiPatrolListItem): PatrolSession {
     violations: 0,
     officerName: p.officer?.officerName,
     siteName: p.site?.name,
+    siteId: p.site?.id,
     deviceName: p.device?.deviceName,
     progressPercent: p.progressPercent,
   };

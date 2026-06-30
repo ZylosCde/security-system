@@ -68,13 +68,13 @@ export function DashboardScreen() {
   const navigation = useNavigation<TabNav>();
   const { colors, ui } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { officer, deviceBinding, signOut, apiError } = usePatrol();
+  const { officer, deviceBinding, signOut, apiError, session } = usePatrol();
   const [torchOn, setTorchOn] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
 
   const firstName = officer?.name.split(' ')[0] ?? 'Officer';
 
-  const goPatrolScreen = (screen: 'SOS' | 'Incident' | 'OfficerPatrolScan') => {
+  const goPatrolScreen = (screen: 'SOS' | 'Incident' | 'OfficerPatrolScan' | 'ScanCheckpoint') => {
     navigation.navigate('Patrols', { screen });
   };
 
@@ -115,7 +115,11 @@ export function DashboardScreen() {
         goPatrolScreen('Incident');
         break;
       case 'patrol':
-        goPatrolScreen('OfficerPatrolScan');
+        if (session?.status === 'in-progress') {
+          goPatrolScreen('ScanCheckpoint');
+        } else {
+          goPatrolScreen('OfficerPatrolScan');
+        }
         break;
       case 'flashlight':
         void toggleFlashlight();
@@ -146,7 +150,7 @@ export function DashboardScreen() {
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
         <View style={styles.headerLeft}>
           <Text style={styles.headerGreeting}>
-            {officer ? `Hello, ${firstName}` : 'AEGIS Patrol'}
+            {officer ? `Hello, ${firstName}` : 'DigitalGUARD360'}
           </Text>
           <Text style={styles.headerMeta}>
             {officer?.name ??

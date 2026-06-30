@@ -16,6 +16,7 @@ import {
 } from "@/lib/command-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/context/AuthContext";
+import { usePatrolStore } from "@/hooks/usePatrolStore";
 
 function NavSection({
   title,
@@ -137,7 +138,7 @@ function SidebarBrand() {
           <Shield className="h-5 w-5" />
         </div>
         <div className="min-w-0">
-          <div className="text-xl font-semibold tracking-tight">AEGIS</div>
+          <div className="text-lg font-semibold tracking-tight">DigitalGUARD360</div>
           <div className="-mt-0.5 text-[10px] text-muted-foreground">COMMAND CENTER</div>
         </div>
       </div>
@@ -155,6 +156,14 @@ export function CommandLayout({ header, headerActions, children }: CommandLayout
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
   const pathname = usePathname();
   const isLogin = pathname === "/login";
+  const {
+    clients,
+    sites,
+    selectedClientId,
+    setSelectedClientId,
+    selectedSiteId,
+    setSelectedSiteId,
+  } = usePatrolStore();
 
   if (isLogin) {
     return <>{children}</>;
@@ -191,11 +200,61 @@ export function CommandLayout({ header, headerActions, children }: CommandLayout
           >
             <Menu className="size-4" />
           </Button>
-          <span className="truncate font-semibold">AEGIS</span>
+          <span className="truncate font-semibold">DigitalGUARD360</span>
         </div>
 
         <div className="flex min-h-0 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border bg-background/80 px-4 py-3 backdrop-blur-xl sm:h-16 sm:px-8 sm:py-0">
-          <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">{header}</div>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3 sm:gap-4">
+            {header}
+            <div className="hidden h-3 w-px bg-border md:block" />
+            <div className="flex items-center gap-2">
+              <select
+                className="h-9 w-[150px] rounded-lg border border-border bg-background px-2.5 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground font-medium"
+                value={selectedClientId ?? ""}
+                onChange={(e) => {
+                  const val = e.target.value || null;
+                  setSelectedClientId(val);
+                  if (val) {
+                    const client = clients.find((c) => String(c.id) === val);
+                    if (client) {
+                      setSelectedSiteId(String(client.siteId));
+                    }
+                  } else {
+                    setSelectedSiteId(null);
+                  }
+                }}
+              >
+                <option value="">All Clients</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                className="h-9 w-[150px] rounded-lg border border-border bg-background px-2.5 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground font-medium"
+                value={selectedSiteId ?? ""}
+                onChange={(e) => {
+                  const val = e.target.value || null;
+                  setSelectedSiteId(val);
+                  if (selectedClientId) {
+                    const client = clients.find((c) => String(c.id) === selectedClientId);
+                    if (client && String(client.siteId) !== val) {
+                      setSelectedClientId(null);
+                    }
+                  }
+                }}
+              >
+                <option value="">All Sites</option>
+                {sites.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
           <div className="flex shrink-0 items-center gap-2">
             <ThemeToggle />
             {headerActions}

@@ -40,6 +40,7 @@ import {
   apiPatrolListToSession,
 } from "@/lib/api-adapters";
 import { useAuth } from "@/context/AuthContext";
+import type { ApiClient } from "@/lib/api-types";
 
 interface PatrolStore {
   sessions: PatrolSession[];
@@ -53,6 +54,11 @@ interface PatrolStore {
   schedules: Schedule[];
   scheduleHistory: ScheduleHistory[];
   sites: { id: number; name: string; lat: number; lng: number }[];
+  clients: ApiClient[];
+  selectedClientId: string | null;
+  setSelectedClientId: (id: string | null) => void;
+  selectedSiteId: string | null;
+  setSelectedSiteId: (id: string | null) => void;
   loading: boolean;
   error: string | null;
   clearError: () => void;
@@ -130,6 +136,10 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [clients, setClients] = useState<ApiClient[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
+
   const clearError = useCallback(() => setError(null), []);
 
   const refreshPatrols = useCallback(async () => {
@@ -150,17 +160,19 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
       setCheckpoints([]);
       setSessions([]);
       setSites([]);
+      setClients([]);
       setError(null);
       return;
     }
     setLoading(true);
     try {
-      const [offRes, devRes, cpRes, patrolRes, siteRes] = await Promise.all([
+      const [offRes, devRes, cpRes, patrolRes, siteRes, clientRes] = await Promise.all([
         api.listOfficers(),
         api.listDevices(),
         api.listCheckpoints(),
         api.listPatrols(),
         api.listSites(),
+        api.listMasterClients().catch(() => ({ success: true as const, clients: [] })),
       ]);
 
       const siteList =
@@ -171,6 +183,8 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
             : [];
       setSites(siteList);
       const siteById = new Map(siteList.map((s) => [s.id, s]));
+
+      setClients(clientRes.clients);
 
       setOfficers(offRes.officers.map(apiOfficerToOfficer));
       setDevices(devRes.devices.map(apiDeviceToDevice));
@@ -380,21 +394,86 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const filteredSessions = React.useMemo(() => {
+    if (!selectedSiteId) return sessions;
+    return sessions.filter((s) => s.siteId === Number(selectedSiteId));
+  }, [sessions, selectedSiteId]);
+
+  const filteredCheckpoints = React.useMemo(() => {
+    if (!selectedSiteId) return checkpoints;
+    return checkpoints.filter((cp) => cp.siteId === Number(selectedSiteId));
+  }, [checkpoints, selectedSiteId]);
+
+  const filteredDevices = React.useMemo(() => {
+    if (!selectedSiteId) return devices;
+    return devices.filter((d) => d.siteId === Number(selectedSiteId));
+  }, [devices, selectedSiteId]);
+
+  const filteredViolations = React.useMemo(() => {
+    if (!selectedSiteId) return violations;
+    const siteSessionIds = new Set(
+      sessions
+        .filter((s) => s.siteId === Number(selectedSiteId))
+        .map((s) => s.id)
+    );
+    return violations.filter((v) => siteSessionIds.has(v.sessionId));
+  }, [violations, sessions, selectedSiteId]);
+
+  const filteredSosEvents = React.useMemo(() => {
+    if (!selectedSiteId) return sosEvents;
+    const siteSessionIds = new Set(
+      sessions
+        .filter((s) => s.siteId === Number(selectedSiteId))
+        .map((s) => s.id)
+    );
+    return sosEvents.filter((s) => siteSessionIds.has(s.sessionId));
+  }, [sosEvents, sessions, selectedSiteId]);
+
+  const filteredIncidents = React.useMemo(() => {
+    if (!selectedSiteId) return incidents;
+    const siteSessionIds = new Set(
+      sessions
+        .filter((s) => s.siteId === Number(selectedSiteId))
+        .map((s) => s.id)
+    );
+    return incidents.filter((inc) => siteSessionIds.has(inc.sessionId));
+  }, [incidents, sessions, selectedSiteId]);
+
+  const filteredSchedules = React.useMemo(() => {
+    if (!selectedSiteId) return schedules;
+    return schedules.filter((s) => s.siteId === Number(selectedSiteId));
+  }, [schedules, selectedSiteId]);
+
+  const filteredRoutes = React.useMemo(() => {
+    if (!selectedSiteId) return routes;
+    const siteCheckpointIds = new Set(
+      checkpoints
+        .filter((cp) => cp.siteId === Number(selectedSiteId))
+        .map((cp) => cp.id)
+    );
+    return routes.filter((r) => r.checkpoints.some((cpId) => siteCheckpointIds.has(cpId)));
+  }, [routes, checkpoints, selectedSiteId]);
+
   const getScheduleHistory = (scheduleId: string) =>
     scheduleHistory.filter((h) => h.scheduleId === scheduleId);
 
   const value: PatrolStore = {
-    sessions,
-    violations,
-    sosEvents,
-    incidents,
+    sessions: filteredSessions,
+    violations: filteredViolations,
+    sosEvents: filteredSosEvents,
+    incidents: filteredIncidents,
     officers,
-    devices,
-    checkpoints,
-    routes,
-    schedules,
+    devices: filteredDevices,
+    checkpoints: filteredCheckpoints,
+    routes: filteredRoutes,
+    schedules: filteredSchedules,
     scheduleHistory,
     sites,
+    clients,
+    selectedClientId,
+    setSelectedClientId,
+    selectedSiteId,
+    setSelectedSiteId,
     loading,
     error,
     clearError,

@@ -18,7 +18,12 @@ import type { PatrolStackParamList } from '../navigation/types';
 import type { ThemeColors } from '../theme/colors';
 import { useAppTheme } from '../context/ThemeContext';
 import { usePatrol } from '../context/PatrolContext';
-import { parseOfficerLoginQr } from '../lib/qrService';
+import {
+  parseOfficerLoginQr,
+  parseDeviceQr,
+  parseCheckpointQrValue,
+  parseQRPayload,
+} from '../lib/qrService';
 
 type Nav = NativeStackNavigationProp<PatrolStackParamList, 'OfficerPatrolScan'>;
 
@@ -42,10 +47,26 @@ export function PatrolOfficerScanScreen() {
       setBusy(true);
       try {
         if (!parseOfficerLoginQr(trimmed)) {
-          Alert.alert('Invalid QR', 'Scan your officer badge QR from admin.');
+          if (parseDeviceQr(trimmed)) {
+            Alert.alert(
+              'Device QR detected',
+              'This is a device registration QR. Please scan your officer badge QR from the admin portal instead.'
+            );
+          } else if (parseCheckpointQrValue(trimmed) || parseQRPayload(trimmed)) {
+            Alert.alert(
+              'Checkpoint QR detected',
+              'This is a checkpoint QR. Please scan your officer badge QR from the admin portal instead.'
+            );
+          } else {
+            Alert.alert(
+              'Invalid QR',
+              'Scan your officer badge QR from the admin portal, or check your manual entry format.'
+            );
+          }
           lastData.current = null;
           return;
         }
+
 
         const res = await startPatrolFromOfficerQr(trimmed);
         if (res.ok) {
