@@ -12,8 +12,7 @@ export function validateCheckpointScan(
   session: PatrolSession,
   route: Route,
   _checkpoints: Checkpoint[],
-  scan: { checkpointId: string; timestamp: string; gps: { lat: number; lng: number } },
-  _scannedIds: string[] = []
+  scan: { checkpointId: string; timestamp: string; gps: { lat: number; lng: number } }
 ): ValidationResult {
   const checkpointIndex = route.checkpoints.indexOf(scan.checkpointId);
   if (checkpointIndex === -1) {

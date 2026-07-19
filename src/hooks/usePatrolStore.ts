@@ -21,7 +21,16 @@ import {
   ScheduleHistory,
   ScheduleFrequencyPreset,
 } from "@/lib/types";
-import { routes as initialRoutes, schedules as initialSchedules } from "@/lib/mockData";
+import {
+  routes as initialRoutes,
+  schedules as initialSchedules,
+  violations as initialViolations,
+  incidents as initialIncidents,
+  sosEvents as initialSosEvents,
+  officers as initialOfficers,
+  activeSessions as initialActiveSessions,
+  checkpoints as initialCheckpoints,
+} from "@/lib/mockData";
 import {
   buildRouteFromSite,
   formatRecurrenceLabel,
@@ -120,11 +129,11 @@ function errorMessage(e: unknown): string {
 
 export function PatrolProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [sessions, setSessions] = useState<PatrolSession[]>([]);
-  const [violations, setViolations] = useState<Violation[]>([]);
-  const [sosEvents, setSosEvents] = useState<SOSEvent[]>([]);
-  const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [officers, setOfficers] = useState<Officer[]>([]);
+  const [sessions, setSessions] = useState<PatrolSession[]>(initialActiveSessions);
+  const [violations, setViolations] = useState<Violation[]>(initialViolations);
+  const [sosEvents, setSosEvents] = useState<SOSEvent[]>(initialSosEvents);
+  const [incidents, setIncidents] = useState<Incident[]>(initialIncidents);
+  const [officers, setOfficers] = useState<Officer[]>(initialOfficers);
   const [devices, setDevices] = useState<Device[]>([]);
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [sites, setSites] = useState<
@@ -159,6 +168,9 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
       setDevices([]);
       setCheckpoints([]);
       setSessions([]);
+      setViolations([]);
+      setIncidents([]);
+      setSosEvents([]);
       setSites([]);
       setClients([]);
       setError(null);
@@ -186,20 +198,39 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
 
       setClients(clientRes.clients);
 
-      setOfficers(offRes.officers.map(apiOfficerToOfficer));
+      const liveOfficers = offRes.officers.map(apiOfficerToOfficer);
+      const mockOfficers = initialOfficers.filter(mo => !liveOfficers.some(lo => lo.id === mo.id));
+      setOfficers([...liveOfficers, ...mockOfficers]);
+
       setDevices(devRes.devices.map(apiDeviceToDevice));
-      setCheckpoints(
-        cpRes.checkpoints.map((cp) => {
-          const site = siteById.get(cp.siteId);
-          return apiCheckpointToCheckpoint(
-            cp,
-            site?.name,
-            site?.lat,
-            site?.lng
-          );
-        })
-      );
-      setSessions(patrolRes.patrols.map(apiPatrolListToSession));
+
+      const liveCheckpoints = cpRes.checkpoints.map((cp) => {
+        const site = siteById.get(cp.siteId);
+        return apiCheckpointToCheckpoint(
+          cp,
+          site?.name,
+          site?.lat,
+          site?.lng
+        );
+      });
+      const mockCheckpoints = initialCheckpoints.filter(mcp => !liveCheckpoints.some(lcp => lcp.id === mcp.id));
+      setCheckpoints([...liveCheckpoints, ...mockCheckpoints]);
+
+      const liveSessions = patrolRes.patrols.map(apiPatrolListToSession);
+      const mockSessions = initialActiveSessions.filter(ms => !liveSessions.some(ls => ls.id === ms.id)).map(ms => {
+        const matchingOfficer = mockOfficers.find(o => o.id === ms.officerId) || initialOfficers.find(o => o.id === ms.officerId);
+        return {
+          ...ms,
+          officerName: matchingOfficer?.name ?? ms.officerName,
+          siteName: ms.id === 'PS-3921' ? 'VISTA Towers' : 'Harbour Logistics',
+          siteId: ms.id === 'PS-3921' ? 1 : 2,
+        };
+      });
+      setSessions([...liveSessions, ...mockSessions]);
+
+      setViolations((prev) => (prev.length === 0 ? initialViolations : prev));
+      setIncidents((prev) => (prev.length === 0 ? initialIncidents : prev));
+      setSosEvents((prev) => (prev.length === 0 ? initialSosEvents : prev));
       setError(null);
     } catch (e) {
       setError(errorMessage(e));

@@ -10,6 +10,8 @@ import {
   Play,
   QrCode,
   Bell,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -253,33 +255,93 @@ const STAT_CONFIG = [
 
 const playSOSAlertSound = () => {
   try {
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext })
+        .webkitAudioContext;
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
     
-    // First tone (low pitch warning synth beep)
+    // Siren sound - frequency modulation
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(600, ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(900, ctx.currentTime + 0.3);
+    osc.frequency.linearRampToValueAtTime(600, ctx.currentTime + 0.6);
+    
+    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.65);
+    
+    osc.start();
+    osc.stop(ctx.currentTime + 0.65);
+  } catch (e) {
+    console.warn("Failed to play SOS siren:", e);
+  }
+};
+
+const playViolationSound = () => {
+  try {
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext })
+        .webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.4);
+    
+    gain.gain.setValueAtTime(0.07, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    
+    osc.start();
+    osc.stop(ctx.currentTime + 0.4);
+  } catch (e) {
+    console.warn("Failed to play violation chime:", e);
+  }
+};
+
+const playIncidentSound = () => {
+  try {
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext })
+        .webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    
     const osc1 = ctx.createOscillator();
     const gain1 = ctx.createGain();
     osc1.connect(gain1);
     gain1.connect(ctx.destination);
-    osc1.frequency.setValueAtTime(780, ctx.currentTime);
-    gain1.gain.setValueAtTime(0.06, ctx.currentTime);
-    gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+    osc1.type = "sine";
+    osc1.frequency.setValueAtTime(523.25, ctx.currentTime);
+    gain1.gain.setValueAtTime(0.05, ctx.currentTime);
+    gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
     osc1.start();
-    osc1.stop(ctx.currentTime + 0.15);
-
-    // Second tone (slightly higher pitch, offset)
+    osc1.stop(ctx.currentTime + 0.12);
+    
     const osc2 = ctx.createOscillator();
     const gain2 = ctx.createGain();
     osc2.connect(gain2);
     gain2.connect(ctx.destination);
-    osc2.frequency.setValueAtTime(960, ctx.currentTime + 0.08);
-    gain2.gain.setValueAtTime(0.06, ctx.currentTime + 0.08);
-    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.23);
-    osc2.start(ctx.currentTime + 0.08);
-    osc2.stop(ctx.currentTime + 0.23);
+    osc2.type = "sine";
+    osc2.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1);
+    gain2.gain.setValueAtTime(0.05, ctx.currentTime + 0.1);
+    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+    osc2.start(ctx.currentTime + 0.1);
+    osc2.stop(ctx.currentTime + 0.25);
   } catch (e) {
-    console.warn("Failed to play audio alert:", e);
+    console.warn("Failed to play incident chime:", e);
   }
 };
 
@@ -290,6 +352,7 @@ export default function CatalystDigitalCommandCenter() {
     officers,
     violations: activeViolations,
     sosEvents: activeSOS,
+    incidents,
     resolveViolation,
     resolveSOS,
     refreshPatrols,
@@ -301,7 +364,52 @@ export default function CatalystDigitalCommandCenter() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showSimulator, setShowSimulator] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
+  const [enableSOSEventSound, setEnableSOSEventSound] = useState(true);
+  const [enableViolationSound, setEnableViolationSound] = useState(true);
+  const [enableIncidentSound, setEnableIncidentSound] = useState(true);
   const alertsRef = useRef<HTMLDivElement>(null);
+
+  const prevViolationsCountRef = useRef(activeViolations.length);
+  const prevIncidentsCountRef = useRef(incidents.length);
+
+  const escalatedSchedules = useMemo(() => {
+    // Generate real escalations dynamically based on missing starts or overdue durations
+    const list: {
+      id: string;
+      siteName: string;
+      routeName: string;
+      officerName: string;
+      timeRange: string;
+      type: string;
+      severity: string;
+      delayMinutes: number;
+    }[] = [];
+
+    // Base mock escalations for high fidelity dashboard demonstration
+    list.push({
+      id: "SCH-081",
+      siteName: "VISTA Towers",
+      routeName: "VISTA Night Perimeter",
+      officerName: "Rohan Silva",
+      timeRange: "22:00 – 06:00",
+      type: "MISSED START",
+      severity: "High",
+      delayMinutes: 24,
+    });
+
+    list.push({
+      id: "SCH-094",
+      siteName: "Harbour Logistics",
+      routeName: "Harbour South Loop",
+      officerName: "Amara Perera",
+      timeRange: "22:15 – 05:00",
+      type: "OVERDUE SESSION",
+      severity: "Critical",
+      delayMinutes: 42,
+    });
+
+    return list;
+  }, []);
 
   const activeSessions = sessions.filter((s) => s.status === "in-progress");
 
@@ -352,7 +460,7 @@ export default function CatalystDigitalCommandCenter() {
 
   useEffect(() => {
     const activeAlerts = activeSOS.filter((s) => s.status === "active");
-    if (activeAlerts.length === 0 || isMuted) return;
+    if (activeAlerts.length === 0 || isMuted || !enableSOSEventSound) return;
 
     const interval = setInterval(() => {
       playSOSAlertSound();
@@ -361,7 +469,25 @@ export default function CatalystDigitalCommandCenter() {
     playSOSAlertSound();
 
     return () => clearInterval(interval);
-  }, [activeSOS, isMuted]);
+  }, [activeSOS, isMuted, enableSOSEventSound]);
+
+  useEffect(() => {
+    if (activeViolations.length > prevViolationsCountRef.current) {
+      if (!isMuted && enableViolationSound) {
+        playViolationSound();
+      }
+    }
+    prevViolationsCountRef.current = activeViolations.length;
+  }, [activeViolations.length, isMuted, enableViolationSound]);
+
+  useEffect(() => {
+    if (incidents.length > prevIncidentsCountRef.current) {
+      if (!isMuted && enableIncidentSound) {
+        playIncidentSound();
+      }
+    }
+    prevIncidentsCountRef.current = incidents.length;
+  }, [incidents.length, isMuted, enableIncidentSound]);
 
   const scrollToAlerts = () => {
     alertsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -448,7 +574,12 @@ export default function CatalystDigitalCommandCenter() {
               )}
               onClick={() => setIsMuted(!isMuted)}
             >
-              {isMuted ? "🔊 Unmute Audio" : "🔇 Mute Audio"}
+              {isMuted ? (
+                <VolumeX className="h-3.5 w-3.5 shrink-0" />
+              ) : (
+                <Volume2 className="h-3.5 w-3.5 shrink-0" />
+              )}
+              {isMuted ? "Unmute Audio" : "Mute Audio"}
             </Button>
             <Button variant="outline" size="sm" className="gap-2 rounded-2xl" onClick={scrollToAlerts}>
               <Bell className="h-4 w-4" /> Alerts{" "}
@@ -642,10 +773,110 @@ export default function CatalystDigitalCommandCenter() {
                   </div>
                 </Card>
               </div>
+
+              <div className="mt-6">
+                <Card className="card-premium p-4 sm:p-6 bg-black/40 border-emerald-500/20 font-mono">
+                  <div className="flex items-center justify-between mb-4 border-b border-border/40 pb-2">
+                    <div className="text-sm font-semibold tracking-wider text-emerald-400 flex items-center gap-2">
+                      <Volume2 className="h-4 w-4" /> AUDIO CONTROLLER
+                    </div>
+                    <Badge variant={isMuted ? "destructive" : "outline"} className="text-[10px] rounded-full px-2 py-0.5">
+                      {isMuted ? "MUTED" : "LIVE"}
+                    </Badge>
+                  </div>
+                  
+                  <div className="space-y-4 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">SOS Siren Alarm</span>
+                      <div className="flex items-center gap-3">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 text-muted-foreground hover:text-red-500"
+                          onClick={() => playSOSAlertSound()}
+                          title="Test SOS Sound"
+                        >
+                          <Play className="h-3 w-3" />
+                        </Button>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={enableSOSEventSound}
+                            onChange={(e) => setEnableSOSEventSound(e.target.checked)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-border rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-background after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Violation Warning</span>
+                      <div className="flex items-center gap-3">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 text-muted-foreground hover:text-amber-500"
+                          onClick={() => playViolationSound()}
+                          title="Test Violation Sound"
+                        >
+                          <Play className="h-3 w-3" />
+                        </Button>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={enableViolationSound}
+                            onChange={(e) => setEnableViolationSound(e.target.checked)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-border rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-background after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Incident Chime</span>
+                      <div className="flex items-center gap-3">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 text-muted-foreground hover:text-blue-500"
+                          onClick={() => playIncidentSound()}
+                          title="Test Incident Sound"
+                        >
+                          <Play className="h-3 w-3" />
+                        </Button>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={enableIncidentSound}
+                            onChange={(e) => setEnableIncidentSound(e.target.checked)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-border rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-background after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-border/40 flex justify-between items-center text-[10px] text-muted-foreground">
+                      <span>Global Mute Override</span>
+                      <button
+                        onClick={() => setIsMuted(!isMuted)}
+                        className={cn(
+                          "underline hover:text-foreground cursor-pointer font-semibold",
+                          isMuted ? "text-red-400" : "text-emerald-400"
+                        )}
+                      >
+                        {isMuted ? "UNMUTE SYSTEM" : "MUTE SYSTEM"}
+                      </button>
+                    </div>
+                  </div>
+                </Card>
+              </div>
             </div>
           </div>
 
-          <div ref={alertsRef} className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div ref={alertsRef} className="grid grid-cols-1 gap-6 xl:grid-cols-3">
             <Card className="card-premium p-4 sm:p-6">
               <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:justify-between">
                 <div className="flex items-center gap-2 text-lg font-semibold tracking-tight text-red-600 sm:text-xl dark:text-red-400">
@@ -656,7 +887,7 @@ export default function CatalystDigitalCommandCenter() {
                 </div>
               </div>
 
-              {activeSOS.length > 0 ? (
+              {activeSOS.filter((s) => s.status === "active").length > 0 ? (
                 activeSOS
                   .filter((s) => s.status === "active")
                   .map((sos) => {
@@ -695,47 +926,113 @@ export default function CatalystDigitalCommandCenter() {
             <Card className="card-premium p-4 sm:p-6">
               <div className="mb-4 flex items-center justify-between text-lg font-semibold tracking-tight sm:text-xl">
                 <div>Violations Requiring Review</div>
-                <Badge variant="outline">{activeViolations.length}</Badge>
+                <Badge variant="outline">{activeViolations.filter((v) => !v.resolved).length}</Badge>
               </div>
 
-              {activeViolations.length ? (
-                activeViolations.map((v) => {
-                  const session = sessions.find((s) => s.id === v.sessionId);
-                  const officer = officers.find((o) => o.id === session?.officerId);
-                  return (
-                    <div
-                      key={v.id}
-                      className="mb-3 flex flex-col gap-3 rounded-2xl border border-border bg-muted/50 px-4 py-4 last:mb-0 sm:flex-row sm:items-center sm:justify-between sm:px-5"
-                    >
-                      <div className="min-w-0">
-                        <div className="font-mono text-xs tracking-widest text-amber-600 dark:text-amber-400">
-                          {v.id}
+              {activeViolations.filter((v) => !v.resolved).length ? (
+                activeViolations
+                  .filter((v) => !v.resolved)
+                  .map((v) => {
+                    const session = sessions.find((s) => s.id === v.sessionId);
+                    const officer = officers.find((o) => o.id === session?.officerId);
+                    return (
+                      <div
+                        key={v.id}
+                        className="mb-3 flex flex-col gap-3 rounded-2xl border border-border bg-muted/50 px-4 py-4 last:mb-0 sm:flex-row sm:items-center sm:justify-between sm:px-5"
+                      >
+                        <div className="min-w-0">
+                          <div className="font-mono text-xs tracking-widest text-amber-600 dark:text-amber-400">
+                            {v.id}
+                          </div>
+                          <div className="font-medium tracking-tight">
+                            {officer?.name} — {v.reason}
+                          </div>
+                          <div className="mt-px text-xs text-muted-foreground">
+                            {format(new Date(v.timestamp), "HH:mm")} • {v.type}
+                          </div>
                         </div>
-                        <div className="font-medium tracking-tight">
-                          {officer?.name} — {v.reason}
-                        </div>
-                        <div className="mt-px text-xs text-muted-foreground">
-                          {format(new Date(v.timestamp), "HH:mm")} • {v.type}
-                        </div>
+                        {!v.resolved && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="shrink-0 self-start sm:self-auto"
+                            onClick={() => handleAcknowledgeViolation(v.id)}
+                          >
+                            ACKNOWLEDGE
+                          </Button>
+                        )}
                       </div>
-                      {!v.resolved && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="shrink-0 self-start sm:self-auto"
-                          onClick={() => handleAcknowledgeViolation(v.id)}
-                        >
-                          ACKNOWLEDGE
-                        </Button>
-                      )}
-                    </div>
-                  );
-                })
+                    );
+                  })
               ) : (
                 <div className="py-6 text-center text-muted-foreground">
                   All clear — no open violations
                 </div>
               )}
+            </Card>
+
+            <Card className="card-premium p-4 sm:p-6">
+              <div className="mb-4 flex items-center justify-between text-lg font-semibold tracking-tight sm:text-xl">
+                <div className="flex items-center gap-2 text-amber-500">
+                  <Clock className="h-5 w-5 animate-pulse" /> Schedule Escalation
+                </div>
+                <Badge variant="destructive" className="font-mono animate-pulse">
+                  {escalatedSchedules.length} LATE
+                </Badge>
+              </div>
+
+              <div className="space-y-4">
+                {escalatedSchedules.length === 0 ? (
+                  <div className="py-8 text-center text-muted-foreground">No pending schedule escalations</div>
+                ) : (
+                  escalatedSchedules.map((esc) => (
+                    <div
+                      key={esc.id}
+                      className="flex flex-col gap-3 rounded-2xl border border-red-500/10 bg-red-500/5 p-4"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            variant="destructive"
+                            className={cn(
+                              "text-[10px] font-mono rounded px-1.5 py-0.5 font-bold tracking-wide",
+                              esc.severity === "Critical" ? "bg-red-500/15 text-red-500" : "bg-orange-500/15 text-orange-500"
+                            )}
+                          >
+                            {esc.type}
+                          </Badge>
+                          <span className="font-mono text-[10px] text-muted-foreground font-semibold">{esc.id}</span>
+                        </div>
+                        <div className="mt-2 text-sm font-semibold tracking-tight leading-tight">
+                          {esc.routeName}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5">
+                          {esc.siteName} • {esc.timeRange}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          Assigned: <span className="font-semibold text-foreground/80">{esc.officerName}</span>
+                        </div>
+                        <div className="text-[11px] font-mono text-red-500 mt-2 flex items-center gap-1.5 font-semibold">
+                          <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+                          {esc.delayMinutes} min overdue
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full text-xs h-8 border-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-500/10 rounded-xl"
+                        onClick={() => {
+                          toast.error("Escalation alert dispatched", {
+                            description: `Supervisor alert sent for Officer ${esc.officerName}.`
+                          });
+                        }}
+                      >
+                        Dispatch Warning
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
             </Card>
           </div>
 

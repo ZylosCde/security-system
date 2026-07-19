@@ -83,8 +83,7 @@ type PatrolContextValue = {
   signOut: () => void;
   submitCheckpointScan: (
     checkpointId: string,
-    qrData?: string,
-    options?: { comment?: string }
+    qrData?: string
   ) => Promise<{ ok: boolean; message: string; allDone?: boolean }>;
   recordViolation: (reason: string) => void;
   recordIncident: (payload: { severity: string; type: string; description: string }) => void;
@@ -243,7 +242,7 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
         });
       }
     },
-    [officer, deviceId, localCompletedIds]
+    [officer, deviceId, localCompletedIds, checkpoints]
   );
 
   const loadSiteData = useCallback(async (sid: number, oid: number, did: string) => {
@@ -747,7 +746,7 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
       await updateLocalCompletedIds([]);
       applyPatrolState(res, []);
       return { ok: true, message: res.message ?? 'Patrol started.' };
-    } catch (e) {
+    } catch {
       await updateLocalCompletedIds([]);
       startLocalPatrolSession(siteId, officer, apiDevId != null ? String(apiDevId) : '', checkpoints);
       return { ok: true, message: 'Patrol started locally.' };
@@ -809,7 +808,7 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
           ok: true,
           message: `Welcome, ${verified.officer.officerName}. Scan checkpoints in any order.`,
         };
-      } catch (e) {
+      } catch {
         await updateLocalCompletedIds([]);
         startLocalPatrolSession(
           verified.assignment.siteId,
@@ -900,7 +899,7 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
   }, [isOffline, refreshPendingCount, deviceBinding, applyBindingToDeviceId]);
 
   const submitCheckpointScan = useCallback(
-    async (checkpointId: string, qrData?: string, _options?: { comment?: string }) => {
+    async (checkpointId: string, qrData?: string) => {
       if (!session || !officer) return { ok: false, message: 'No active patrol' };
       if (route.checkpoints.length === 0) {
         return { ok: false, message: 'No checkpoints on route' };

@@ -2,8 +2,7 @@
  * Generates PNG QR codes for all demo checkpoints into mobile/assets/sample-qrs/.
  * Tokens rotate daily — re-run this script or use the in-app Sample QR screen for current codes.
  */
-import { createHash } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 

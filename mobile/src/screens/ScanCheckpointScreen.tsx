@@ -176,11 +176,9 @@ export function ScanCheckpointScreen() {
       checkpoints,
       routeCheckpointIds,
       scannedIds,
-      navigation,
       siteId,
       submitCheckpointScan,
       completePatrolAndSignOut,
-      isOffline,
       goHome,
       resetScanner,
     ]

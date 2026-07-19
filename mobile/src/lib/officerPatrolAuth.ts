@@ -8,7 +8,7 @@ import {
   type ApiOfficer,
 } from './api-client';
 import { parseOfficerLoginQr } from './qrService';
-import { validateAssignmentAgainstBinding, type DeviceBinding } from './deviceBinding';
+import { type DeviceBinding } from './deviceBinding';
 
 export type OfficerPatrolVerifyResult =
   | {

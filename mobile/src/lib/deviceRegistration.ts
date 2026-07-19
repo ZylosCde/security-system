@@ -4,7 +4,6 @@ import { validateQrImeiMatch, type DeviceBinding } from './deviceBinding';
 import {
   getLocalDeviceImei,
   imeiValuesMatch,
-  validateStoredBindingImei,
   canVerifyHandsetImei,
 } from './deviceImei';
 
