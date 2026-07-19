@@ -367,10 +367,41 @@ export default function CatalystDigitalCommandCenter() {
   const [enableSOSEventSound, setEnableSOSEventSound] = useState(true);
   const [enableViolationSound, setEnableViolationSound] = useState(true);
   const [enableIncidentSound, setEnableIncidentSound] = useState(true);
+  const [isTestingSOSBlink, setIsTestingSOSBlink] = useState(false);
+  const [testSOSEvent, setTestSOSEvent] = useState<SOSEvent | null>(null);
   const alertsRef = useRef<HTMLDivElement>(null);
 
   const prevViolationsCountRef = useRef(activeViolations.length);
   const prevIncidentsCountRef = useRef(incidents.length);
+
+  const handleTestSOS = () => {
+    playSOSAlertSound();
+    setIsTestingSOSBlink(true);
+    setTestSOSEvent({
+      id: "TEST",
+      sessionId: "PS-3921",
+      officerId: "O-101",
+      triggeredAt: new Date().toISOString(),
+      status: "active",
+      gps: { lat: 6.9586, lng: 79.9142 },
+    });
+    setTimeout(() => {
+      setIsTestingSOSBlink(false);
+      setTestSOSEvent(null);
+    }, 6000);
+  };
+
+  const displayedSOS = useMemo(() => {
+    const list = [...activeSOS];
+    if (testSOSEvent) {
+      list.push(testSOSEvent);
+    }
+    return list;
+  }, [activeSOS, testSOSEvent]);
+
+  const hasActiveSOSAlert =
+    (displayedSOS.some((s) => s.status === "active") && !isMuted && enableSOSEventSound) ||
+    isTestingSOSBlink;
 
   const escalatedSchedules = useMemo(() => {
     // Generate real escalations dynamically based on missing starts or overdue durations
@@ -508,6 +539,12 @@ export default function CatalystDigitalCommandCenter() {
   }, [refreshPatrols]);
 
   const handleResolveSOS = (id: string) => {
+    if (id === "TEST") {
+      setTestSOSEvent(null);
+      setIsTestingSOSBlink(false);
+      toast.success("Test SOS alert cleared");
+      return;
+    }
     resolveSOS(id, "Incident resolved from command center.");
     toast.success("SOS marked resolved", {
       description: "Resolution note saved to audit log.",
@@ -793,7 +830,7 @@ export default function CatalystDigitalCommandCenter() {
                           size="icon"
                           variant="ghost"
                           className="h-6 w-6 text-muted-foreground hover:text-red-500"
-                          onClick={() => playSOSAlertSound()}
+                          onClick={handleTestSOS}
                           title="Test SOS Sound"
                         >
                           <Play className="h-3 w-3" />
@@ -887,8 +924,8 @@ export default function CatalystDigitalCommandCenter() {
                 </div>
               </div>
 
-              {activeSOS.filter((s) => s.status === "active").length > 0 ? (
-                activeSOS
+              {displayedSOS.filter((s) => s.status === "active").length > 0 ? (
+                displayedSOS
                   .filter((s) => s.status === "active")
                   .map((sos) => {
                     const officer = officers.find((o) => o.id === sos.officerId);
@@ -1059,6 +1096,10 @@ export default function CatalystDigitalCommandCenter() {
           <DeviceSimulator onClose={() => setShowSimulator(false)} />
         )}
       </AnimatePresence>
+
+      {hasActiveSOSAlert && (
+        <div className="fixed inset-0 pointer-events-none z-[99] border-[16px] border-red-600 bg-red-600/10 animate-[pulse_1s_infinite]" />
+      )}
     </>
   );
 }
