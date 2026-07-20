@@ -10,6 +10,7 @@ import {
   MapPinned,
   UserCog,
   Footprints,
+  Timer,
 } from "lucide-react";
 
 export type CommandNavItem = {
@@ -34,6 +35,7 @@ export const COMMAND_NAV_MAIN: readonly CommandNavItem[] = [
   },
   { href: "/violations", label: "Violations", icon: AlertTriangle },
   { href: "/incidents", label: "Incidents", icon: Bell },
+  { href: "/escalations", label: "Schedule Escalations", icon: Timer },
 ] as const;
 
 export const COMMAND_NAV_MASTER: readonly CommandNavItem[] = [
