@@ -84,7 +84,7 @@ interface PatrolStore {
   addOfficer: (data: {
     officerName: string;
     NIC: string;
-    Position: "JPO" | "SPO";
+    Position: "JPO" | "SPO" | "VO";
   }) => Promise<void>;
   addDevice: (data: {
     deviceName: string;
@@ -287,7 +287,7 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
   const addOfficer = async (data: {
     officerName: string;
     NIC: string;
-    Position: "JPO" | "SPO";
+    Position: "JPO" | "SPO" | "VO";
   }) => {
     const res = await api.createOfficer(data);
     setOfficers((prev) => [...prev, apiOfficerToOfficer(res.officer)]);

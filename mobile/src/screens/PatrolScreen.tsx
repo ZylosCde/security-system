@@ -45,10 +45,36 @@ export function PatrolScreen() {
     refreshPatrolState,
     addPatrolIncidentNote,
     patrolIncidents,
+    hasPausedVOPatrol,
+    pauseVOPatrol,
+    resumeVOPatrol,
   } = usePatrol();
   const [starting, setStarting] = useState(false);
+  const [resuming, setResuming] = useState(false);
+  const [pausing, setPausing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [incidentNote, setIncidentNote] = useState('');
+
+  const handlePauseVOPatrol = async () => {
+    setPausing(true);
+    const res = await pauseVOPatrol();
+    setPausing(false);
+    if (!res.ok) {
+      Alert.alert('Cannot suspend patrol', res.message);
+      return;
+    }
+    Alert.alert('Patrol Suspended', 'You can resume this patrol later from the home screen.');
+  };
+
+  const handleResumeVOPatrol = async () => {
+    setResuming(true);
+    const res = await resumeVOPatrol();
+    setResuming(false);
+    if (!res.ok) {
+      Alert.alert('Cannot resume patrol', res.message);
+      return;
+    }
+  };
 
   const total = route.checkpoints.length;
   const completed = scannedIds.length;
@@ -140,17 +166,31 @@ export function PatrolScreen() {
         ) : null}
 
         {!patrolActive && !patrolComplete ? (
-          <Pressable
-            style={[ui.btnPrimary, styles.blockGap, (starting || total === 0) && ui.btnDisabled]}
-            onPress={() => void handleStartPatrol()}
-            disabled={starting || total === 0}
-          >
-            {starting ? (
-              <ActivityIndicator color={colors.onPrimary} />
-            ) : (
-              <Text style={ui.btnPrimaryText}>Start patrol</Text>
-            )}
-          </Pressable>
+          hasPausedVOPatrol ? (
+            <Pressable
+              style={[ui.btnPrimary, styles.blockGap, { backgroundColor: colors.warning || '#f59e0b', borderColor: colors.warning || '#f59e0b' }]}
+              onPress={() => void handleResumeVOPatrol()}
+              disabled={resuming}
+            >
+              {resuming ? (
+                <ActivityIndicator color={colors.onPrimary} />
+              ) : (
+                <Text style={ui.btnPrimaryText}>Resume VO Patrol</Text>
+              )}
+            </Pressable>
+          ) : (
+            <Pressable
+              style={[ui.btnPrimary, styles.blockGap, (starting || total === 0) && ui.btnDisabled]}
+              onPress={() => void handleStartPatrol()}
+              disabled={starting || total === 0}
+            >
+              {starting ? (
+                <ActivityIndicator color={colors.onPrimary} />
+              ) : (
+                <Text style={ui.btnPrimaryText}>Start patrol</Text>
+              )}
+            </Pressable>
+          )
         ) : null}
 
         {patrolActive && !patrolComplete ? (
@@ -213,6 +253,29 @@ export function PatrolScreen() {
                 <Text style={styles.actionBtnText}>Log Incident</Text>
               </Pressable>
             </View>
+
+            {/* Suspend VO Patrol Button (Visible only to VO officers) */}
+            {officer.position === 'VO' ? (
+              <Pressable
+                style={[
+                  ui.btnSecondary,
+                  styles.blockGap,
+                  {
+                    borderColor: colors.warning || '#f59e0b',
+                    flexDirection: 'row',
+                    gap: 8,
+                    justifyContent: 'center',
+                  },
+                ]}
+                onPress={() => void handlePauseVOPatrol()}
+                disabled={pausing}
+              >
+                <Ionicons name="pause-circle-outline" size={20} color={colors.warning || '#f59e0b'} />
+                <Text style={[ui.btnSecondaryText, { color: colors.warning || '#f59e0b', fontWeight: 'bold' }]}>
+                  Suspend VO Patrol
+                </Text>
+              </Pressable>
+            ) : null}
 
             {/* Emergency SOS Button */}
             <Pressable

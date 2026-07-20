@@ -36,7 +36,7 @@ export default function OfficersPage() {
   const [newOfficer, setNewOfficer] = useState({
     officerName: "",
     NIC: "",
-    Position: "JPO" as "JPO" | "SPO",
+    Position: "JPO" as "JPO" | "SPO" | "VO",
   });
 
   const filtered = officers.filter(
@@ -281,12 +281,13 @@ export default function OfficersPage() {
                   onChange={(e) =>
                     setNewOfficer({
                       ...newOfficer,
-                      Position: e.target.value as "JPO" | "SPO",
+                      Position: e.target.value as "JPO" | "SPO" | "VO",
                     })
                   }
                 >
                   <option value="JPO">JPO</option>
                   <option value="SPO">SPO</option>
+                  <option value="VO">VO (Visiting Officer)</option>
                 </select>
               </div>
             </div>

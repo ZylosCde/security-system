@@ -1,4 +1,4 @@
-export type PatrolStatus = 'scheduled' | 'in-progress' | 'completed' | 'violated' | 'cancelled';
+export type PatrolStatus = 'scheduled' | 'in-progress' | 'completed' | 'violated' | 'cancelled' | 'paused';
 
 export interface Checkpoint {
   id: string;
@@ -22,7 +22,7 @@ export interface Officer {
   id: string;
   name: string;
   nic: string;
-  position?: 'JPO' | 'SPO';
+  position?: 'JPO' | 'SPO' | 'VO';
   status: 'on-duty' | 'off-duty' | 'on-break';
 }
 

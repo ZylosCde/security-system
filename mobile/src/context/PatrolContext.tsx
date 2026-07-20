@@ -94,6 +94,9 @@ type PatrolContextValue = {
   flushOfflineQueue: () => Promise<number>;
   refreshPatrolState: () => Promise<void>;
   hydrated: boolean;
+  hasPausedVOPatrol: boolean;
+  pauseVOPatrol: () => Promise<{ ok: boolean; message: string }>;
+  resumeVOPatrol: () => Promise<{ ok: boolean; message: string }>;
 };
 
 const emptyRoute: Route = {
@@ -1100,6 +1103,89 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
     setSosBroadcasting(false);
   }, []);
 
+  const STORAGE_VO_PAUSED = 'aegis_vo_paused_session_data';
+  const [hasPausedVOPatrol, setHasPausedVOPatrol] = useState(false);
+
+  useEffect(() => {
+    void (async () => {
+      const pausedRaw = await AsyncStorage.getItem(STORAGE_VO_PAUSED);
+      if (pausedRaw) {
+        setHasPausedVOPatrol(true);
+      }
+    })();
+  }, []);
+
+  const pauseVOPatrol = useCallback(async () => {
+    if (!session) return { ok: false, message: 'No active session to pause.' };
+    
+    const pausedData = {
+      session: {
+        ...session,
+        status: 'paused' as const,
+      },
+      siteId,
+      siteName,
+      scannedIds,
+      localCompletedIds,
+      checkpoints,
+      route,
+    };
+
+    await AsyncStorage.setItem(STORAGE_VO_PAUSED, JSON.stringify(pausedData));
+    setHasPausedVOPatrol(true);
+
+    setSession(null);
+    setScannedIds([]);
+    setLocalCompletedIds([]);
+    setNextCheckpointId(null);
+    setProgressPercent(0);
+    setCheckpointStatusById({});
+    void AsyncStorage.removeItem(STORAGE_LOCAL_COMPLETED);
+
+    return { ok: true, message: 'Visiting Officer patrol paused successfully.' };
+  }, [session, siteId, siteName, scannedIds, localCompletedIds, checkpoints, route]);
+
+  const resumeVOPatrol = useCallback(async () => {
+    const pausedRaw = await AsyncStorage.getItem(STORAGE_VO_PAUSED);
+    if (!pausedRaw) return { ok: false, message: 'No paused VO patrol found.' };
+
+    try {
+      const parsed = JSON.parse(pausedRaw);
+      
+      setSiteId(parsed.siteId);
+      setSiteName(parsed.siteName);
+      setCheckpoints(parsed.checkpoints);
+      setRoute(parsed.route);
+      setScannedIds(parsed.scannedIds);
+      setLocalCompletedIds(parsed.localCompletedIds);
+      
+      const statusMap: Record<string, CheckpointStatus> = {};
+      for (const cp of parsed.checkpoints) {
+        statusMap[cp.id] = parsed.scannedIds.includes(cp.id) ? 'completed' : 'pending';
+      }
+      setCheckpointStatusById(statusMap);
+
+      const nextUnscanned = parsed.route.checkpoints.find((id: string) => !parsed.scannedIds.includes(id)) ?? null;
+      setNextCheckpointId(nextUnscanned);
+
+      const total = parsed.route.checkpoints.length;
+      const pct = total > 0 ? Math.round((parsed.scannedIds.length / total) * 100) : 0;
+      setProgressPercent(pct);
+
+      setSession({
+        ...parsed.session,
+        status: 'in-progress' as const,
+      });
+
+      await AsyncStorage.removeItem(STORAGE_VO_PAUSED);
+      setHasPausedVOPatrol(false);
+
+      return { ok: true, message: 'Visiting Officer patrol resumed.' };
+    } catch {
+      return { ok: false, message: 'Failed to restore paused VO patrol.' };
+    }
+  }, []);
+
   const flushOfflineQueue = useCallback(async () => {
     const n = await syncQueue();
     if (officer && siteId != null) {
@@ -1152,6 +1238,9 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
       flushOfflineQueue,
       refreshPatrolState,
       hydrated,
+      hasPausedVOPatrol,
+      pauseVOPatrol,
+      resumeVOPatrol,
     }),
     [
       officer,
@@ -1194,6 +1283,9 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
       flushOfflineQueue,
       refreshPatrolState,
       hydrated,
+      hasPausedVOPatrol,
+      pauseVOPatrol,
+      resumeVOPatrol,
     ]
   );
 

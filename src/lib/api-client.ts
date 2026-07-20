@@ -163,7 +163,7 @@ export async function listOfficers() {
 export async function createOfficer(data: {
   officerName: string;
   NIC: string;
-  Position: "JPO" | "SPO";
+  Position: "JPO" | "SPO" | "VO";
 }) {
   return request<SuccessEnvelope<{ officer: ApiOfficer }>>("/api/officer", {
     method: "POST",

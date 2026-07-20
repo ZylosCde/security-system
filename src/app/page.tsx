@@ -105,6 +105,16 @@ function LiveMap({
 
   return (
     <div className="map-container relative h-[360px] w-full overflow-hidden rounded-2xl border border-border bg-black/30 dark:bg-black/50 shadow-inner">
+      {/* Building Blueprint Background */}
+      <div 
+        className="absolute inset-0 pointer-events-none opacity-20 mix-blend-screen"
+        style={{
+          backgroundImage: "url('/blueprint.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      />
+
       {/* Radar concentric circular grid */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div className="absolute h-[25%] aspect-square border border-indigo-500/10 rounded-full" />
@@ -442,7 +452,9 @@ export default function CatalystDigitalCommandCenter() {
     return list;
   }, []);
 
-  const activeSessions = sessions.filter((s) => s.status === "in-progress");
+  const activeSessions = sessions.filter(
+    (s) => s.status === "in-progress" || s.status === "paused"
+  );
 
   const activityLogs = useMemo(() => {
     const logs: { id: string; time: Date; message: string; type: "info" | "success" | "warning" | "error" }[] = [];
@@ -706,80 +718,85 @@ export default function CatalystDigitalCommandCenter() {
                 </Badge>
               </div>
 
-              {loading && activeSessions.length === 0 ? (
-                <Card className="card-premium p-6">
-                  <div className="flex items-center justify-center gap-3 text-muted-foreground">
-                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                    Loading patrols…
-                  </div>
-                </Card>
-              ) : activeSessions.length === 0 ? (
-                <Card className="card-premium p-6 text-center text-muted-foreground">
-                  No active patrols
-                </Card>
-              ) : null}
-              {activeSessions.map((session) => {
-                const officerName =
-                  session.officerName ??
-                  officers.find((o) => o.id === session.officerId)?.name ??
-                  "Officer";
-                const deviceLabel =
-                  session.deviceName ?? (session.deviceId ? `Device ${session.deviceId}` : "—");
-                const progress =
-                  session.progressPercent ??
-                  (session.totalCheckpoints > 0
-                    ? Math.round(
-                        (session.checkpointsCompleted / session.totalCheckpoints) * 100
-                      )
-                    : 0);
-
-                return (
-                  <Card key={session.id} className="card-premium p-4 sm:p-5">
-                    <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
-                      <div className="min-w-0">
-                        <div className="font-mono text-xs tracking-wide text-muted-foreground">
-                          #{session.id}
-                          {session.siteName ? ` · ${session.siteName}` : ""}
-                        </div>
-                        <div className="mt-px text-base font-semibold tracking-tight sm:text-lg">
-                          {officerName}
-                        </div>
-                        <div className="text-xs text-muted-foreground">{deviceLabel}</div>
-                      </div>
-                      <Badge
-                        className={cn(
-                          "shrink-0 self-start",
-                          session.status === "in-progress" &&
-                            "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                        )}
-                      >
-                        {session.status.toUpperCase()}
-                      </Badge>
-                    </div>
-
-                    <div className="mt-5">
-                      <div className="mb-1.5 flex justify-between font-mono text-xs text-muted-foreground">
-                        <div>PROGRESS</div>
-                        <div>
-                          {session.checkpointsCompleted} / {session.totalCheckpoints} CHECKPOINTS
-                        </div>
-                      </div>
-                      <div className="patrol-progress">
-                        <div
-                          className="patrol-progress-bar"
-                          style={{ width: `${progress}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mt-5 flex flex-wrap items-center gap-4 text-xs">
-                      <div className="min-w-0 flex-1 font-mono text-muted-foreground tabular-nums">
-                        Started {format(new Date(session.startTime), "HH:mm")}
-                      </div>
+              <div className="max-h-[360px] overflow-y-auto pr-1.5 space-y-3">
+                {loading && activeSessions.length === 0 ? (
+                  <Card className="card-premium p-6">
+                    <div className="flex items-center justify-center gap-3 text-muted-foreground">
+                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                      Loading patrols…
                     </div>
                   </Card>
-                );
-              })}
+                ) : activeSessions.length === 0 ? (
+                  <Card className="card-premium p-6 text-center text-muted-foreground">
+                    No active patrols
+                  </Card>
+                ) : null}
+                {activeSessions.map((session) => {
+                  const officerName =
+                    session.officerName ??
+                    officers.find((o) => o.id === session.officerId)?.name ??
+                    "Officer";
+                  const deviceLabel =
+                    session.deviceName ?? (session.deviceId ? `Device ${session.deviceId}` : "—");
+                  const progress =
+                    session.progressPercent ??
+                    (session.totalCheckpoints > 0
+                      ? Math.round(
+                          (session.checkpointsCompleted / session.totalCheckpoints) * 100
+                        )
+                      : 0);
+
+                  return (
+                    <Card key={session.id} className="card-premium p-4 sm:p-5">
+                      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+                        <div className="min-w-0">
+                          <div className="font-mono text-xs tracking-wide text-muted-foreground">
+                            #{session.id}
+                            {session.siteName ? ` · ${session.siteName}` : ""}
+                          </div>
+                          <div className="mt-px text-base font-semibold tracking-tight sm:text-lg">
+                            {officerName}
+                          </div>
+                          <div className="text-xs text-muted-foreground">{deviceLabel}</div>
+                        </div>
+                        <Badge
+                          className={cn(
+                            "shrink-0 self-start font-mono text-[10px]",
+                            session.status === "in-progress" &&
+                              "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
+                            session.status === "paused" &&
+                              "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                          )}
+                          variant="outline"
+                        >
+                          {session.status === "paused" ? "PAUSED (VO)" : "IN PROGRESS"}
+                        </Badge>
+                      </div>
+
+                      <div className="mt-5">
+                        <div className="mb-1.5 flex justify-between font-mono text-xs text-muted-foreground">
+                          <div>PROGRESS</div>
+                          <div>
+                            {session.checkpointsCompleted} / {session.totalCheckpoints} CHECKPOINTS
+                          </div>
+                        </div>
+                        <div className="patrol-progress">
+                          <div
+                            className="patrol-progress-bar"
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mt-5 flex flex-wrap items-center gap-4 text-xs">
+                        <div className="min-w-0 flex-1 font-mono text-muted-foreground tabular-nums">
+                          Started {format(new Date(session.startTime), "HH:mm")}
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
               
               <div className="mt-6">
                 <Card className="card-premium p-4 sm:p-6 bg-black/40 border-indigo-500/20 font-mono">

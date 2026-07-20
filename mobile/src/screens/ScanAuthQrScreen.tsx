@@ -37,6 +37,14 @@ export function ScanAuthQrScreen() {
   const [busy, setBusy] = useState(false);
   const lastData = useRef<string | null>(null);
 
+  const handleBack = useCallback(() => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.replace('Auth');
+    }
+  }, [navigation]);
+
   const title = mode === 'device' ? 'Scan device QR' : 'Scan officer QR';
   const hint =
     mode === 'device'
@@ -69,7 +77,7 @@ export function ScanAuthQrScreen() {
                 'Officer badge detected',
                 'You scanned your officer sign-in QR. Register this tablet first:\n\n1. Open the web admin → Devices\n2. Tap Show QR on your assigned device\n3. Scan that device QR here\n\nThen on the sign-in screen use Scan officer QR for this badge.',
                 [
-                  { text: 'Back to sign-in', onPress: () => navigation.goBack() },
+                  { text: 'Back to sign-in', onPress: handleBack },
                   { text: 'OK', style: 'cancel' },
                 ]
               );
@@ -116,7 +124,7 @@ export function ScanAuthQrScreen() {
         }, 2500);
       }
     },
-    [busy, mode, deviceBinding, registerDeviceFromQr, loginFromQr, navigation]
+    [busy, mode, deviceBinding, registerDeviceFromQr, loginFromQr, navigation, handleBack]
   );
 
   const onBarcode = useCallback(
@@ -135,7 +143,7 @@ export function ScanAuthQrScreen() {
   if (!permission?.granted) {
     return (
       <View style={[styles.center, { paddingTop: insets.top }]}>
-        <Pressable style={styles.backBtn} onPress={() => navigation.goBack()}>
+        <Pressable style={styles.backBtn} onPress={handleBack}>
           <Ionicons name="arrow-back" size={24} color={colors.textOnDark} />
         </Pressable>
         <Text style={styles.title}>{title}</Text>
@@ -165,7 +173,7 @@ export function ScanAuthQrScreen() {
   return (
     <View style={[styles.root, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 8 }]}>
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} accessibilityLabel="Go back">
+        <Pressable onPress={handleBack} accessibilityLabel="Go back">
           <Ionicons name="arrow-back" size={24} color={colors.textOnDark} />
         </Pressable>
         <Text style={styles.title}>{title}</Text>

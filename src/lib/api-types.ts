@@ -1,9 +1,9 @@
 // API response shapes from Catalyst Security Demo backend
 
 export type UserRole = "MASTER" | "ADMIN" | "USER";
-export type OfficerPosition = "JPO" | "SPO";
+export type OfficerPosition = "JPO" | "SPO" | "VO";
 export type DeviceType = "DESKTOP" | "LAPTOP" | "MOBILE" | "TABLET";
-export type PatrolStatus = "IN_PROGRESS" | "COMPLETED";
+export type PatrolStatus = "IN_PROGRESS" | "COMPLETED" | "PAUSED";
 
 export interface ApiError {
   success: false;

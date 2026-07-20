@@ -1,4 +1,4 @@
-const BASE_URL = "https://catalyst-security.zyloscode.com".replace(/\/$/, "");
+const BASE_URL = (process.env.EXPO_PUBLIC_API_URL || "https://catalyst-security.zyloscode.com").replace(/\/$/, "");
 
 export class ApiClientError extends Error {
   constructor(
@@ -16,7 +16,7 @@ export type ApiOfficer = {
   id: number;
   officerName: string;
   NIC: string;
-  Position: "JPO" | "SPO";
+  Position: "JPO" | "SPO" | "VO";
 };
 
 export type ApiSite = {

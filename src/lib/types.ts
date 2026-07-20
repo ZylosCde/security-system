@@ -3,7 +3,7 @@
 
 export type DeviceStatus = 'active' | 'offline' | 'maintenance';
 export type OfficerStatus = 'on-duty' | 'off-duty' | 'on-break';
-export type PatrolStatus = 'scheduled' | 'in-progress' | 'completed' | 'violated' | 'cancelled';
+export type PatrolStatus = 'scheduled' | 'in-progress' | 'completed' | 'violated' | 'cancelled' | 'paused';
 export type ViolationType = 'skipped-checkpoint' | 'out-of-order' | 'late-start' | 'route-deviation' | 'missed-window';
 export type Severity = 'Low' | 'Medium' | 'High' | 'Critical';
 export type IncidentType = 'Trespasser' | 'Theft' | 'Fire' | 'Injury' | 'Suspicious Activity' | 'Equipment Failure' | 'Other';
@@ -29,6 +29,7 @@ export interface Officer {
   shift: string;
   phone: string;
   avatar?: string;
+  position?: "JPO" | "SPO" | "VO";
 }
 
 export interface Checkpoint {
