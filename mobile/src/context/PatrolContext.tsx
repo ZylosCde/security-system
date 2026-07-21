@@ -1133,20 +1133,29 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
     setSosBroadcasting(false);
   }, []);
 
-  const STORAGE_VO_PAUSED = 'aegis_vo_paused_session_data';
   const [hasPausedVOPatrol, setHasPausedVOPatrol] = useState(false);
+
+  const getVoPausedKey = useCallback(() => {
+    if (!officer) return null;
+    return `aegis_vo_paused_session_data_${officer.nic}`;
+  }, [officer]);
 
   useEffect(() => {
     void (async () => {
-      const pausedRaw = await AsyncStorage.getItem(STORAGE_VO_PAUSED);
-      if (pausedRaw) {
-        setHasPausedVOPatrol(true);
+      const key = getVoPausedKey();
+      if (!key) {
+        setHasPausedVOPatrol(false);
+        return;
       }
+      const pausedRaw = await AsyncStorage.getItem(key);
+      setHasPausedVOPatrol(!!pausedRaw);
     })();
-  }, []);
+  }, [getVoPausedKey]);
 
   const pauseVOPatrol = useCallback(async () => {
     if (!session) return { ok: false, message: 'No active session to pause.' };
+    const key = getVoPausedKey();
+    if (!key) return { ok: false, message: 'No authenticated officer to associate paused session with.' };
     
     const pausedData = {
       session: {
@@ -1161,7 +1170,7 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
       route,
     };
 
-    await AsyncStorage.setItem(STORAGE_VO_PAUSED, JSON.stringify(pausedData));
+    await AsyncStorage.setItem(key, JSON.stringify(pausedData));
     setHasPausedVOPatrol(true);
 
     setSession(null);
@@ -1173,10 +1182,12 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
     void AsyncStorage.removeItem(STORAGE_LOCAL_COMPLETED);
 
     return { ok: true, message: 'Visiting Officer patrol paused successfully.' };
-  }, [session, siteId, siteName, scannedIds, localCompletedIds, checkpoints, route]);
+  }, [session, siteId, siteName, scannedIds, localCompletedIds, checkpoints, route, getVoPausedKey]);
 
   const resumeVOPatrol = useCallback(async () => {
-    const pausedRaw = await AsyncStorage.getItem(STORAGE_VO_PAUSED);
+    const key = getVoPausedKey();
+    if (!key) return { ok: false, message: 'No authenticated officer found.' };
+    const pausedRaw = await AsyncStorage.getItem(key);
     if (!pausedRaw) return { ok: false, message: 'No paused VO patrol found.' };
 
     try {
@@ -1207,14 +1218,14 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
         status: 'in-progress' as const,
       });
 
-      await AsyncStorage.removeItem(STORAGE_VO_PAUSED);
+      await AsyncStorage.removeItem(key);
       setHasPausedVOPatrol(false);
 
       return { ok: true, message: 'Visiting Officer patrol resumed.' };
     } catch {
       return { ok: false, message: 'Failed to restore paused VO patrol.' };
     }
-  }, []);
+  }, [getVoPausedKey]);
 
   const flushOfflineQueue = useCallback(async () => {
     const n = await syncQueue();
