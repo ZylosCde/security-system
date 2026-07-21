@@ -250,10 +250,40 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
 
   const loadSiteData = useCallback(async (sid: number, oid: number, did: string) => {
     try {
-      const [cpRes, patrolState] = await Promise.all([
-        listCheckpoints(sid),
-        getPatrolState(sid, oid),
-      ]);
+      const cpRes = await listCheckpoints(sid);
+      let patrolState: ApiPatrolState;
+      try {
+        patrolState = await getPatrolState(sid, oid);
+      } catch {
+        const siteNameFallback = cpRes.checkpoints[0]?.site?.name ?? `Site #${sid}`;
+        patrolState = {
+          success: true,
+          site: {
+            id: sid,
+            name: siteNameFallback,
+            lat: cpRes.checkpoints[0]?.site?.lat ?? 0,
+            lng: cpRes.checkpoints[0]?.site?.lng ?? 0,
+          },
+          patrol: {
+            id: 0,
+            status: 'COMPLETED',
+            startedAt: new Date().toISOString(),
+            completedAt: new Date().toISOString(),
+          },
+          checkpoints: cpRes.checkpoints.map((cp, idx) => ({
+            id: cp.id,
+            name: cp.name,
+            code: cp.code,
+            routeIndex: cp.routeOrder ?? idx,
+            status: 'pending',
+          })),
+          completedCount: 0,
+          totalCount: cpRes.checkpoints.length,
+          progressPercent: 0,
+          nextCheckpointId: cpRes.checkpoints[0]?.id ?? null,
+          visitedCheckpointIds: [],
+        };
+      }
       const siteLabel = patrolState.site.name;
       setSiteName(siteLabel);
       setCheckpoints(apiCheckpointsToCheckpoints(cpRes.checkpoints, siteLabel));

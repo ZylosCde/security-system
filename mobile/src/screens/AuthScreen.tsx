@@ -9,6 +9,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -22,6 +23,7 @@ import { typography } from '../theme/typography';
 import { useAppTheme } from '../context/ThemeContext';
 import { usePatrol } from '../context/PatrolContext';
 import { BASE_URL } from '../lib/api-client';
+import AppIcon from '../../assets/icon.png';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Auth'>;
 
@@ -57,9 +59,12 @@ export function AuthScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-        <View style={styles.logoWrap}>
-          <Ionicons name="shield-checkmark" size={28} color={colors.onPrimary} />
-        </View>
+        <Image
+          source={AppIcon}
+          style={{ width: 56, height: 56, marginBottom: spacing.md, borderRadius: radius.lg }}
+          resizeMode="contain"
+          alt="CatalystDigital Logo"
+        />
         <Text style={styles.headerTitle}>Officer App</Text>
         <Text style={styles.headerSub}>Sign in to start patrols</Text>
       </View>

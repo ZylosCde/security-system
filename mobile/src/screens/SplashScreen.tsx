@@ -1,14 +1,14 @@
 import React, { useEffect, useMemo } from 'react';
-import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, Text, StyleSheet, Image } from 'react-native';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList } from '../navigation/types';
 import type { ThemeColors } from '../theme/colors';
 import { spacing, radius } from '../theme/spacing';
 import { typography } from '../theme/typography';
 import { useAppTheme } from '../context/ThemeContext';
 import { usePatrol } from '../context/PatrolContext';
+import AppIcon from '../../assets/icon.png';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Splash'>;
 
@@ -48,9 +48,12 @@ export function SplashScreen() {
 
   return (
     <View style={styles.wrap} accessibilityLabel="Loading">
-      <View style={styles.logo}>
-        <Ionicons name="shield-checkmark" size={36} color={colors.onPrimary} />
-      </View>
+      <Image
+        source={AppIcon}
+        style={{ width: 72, height: 72, marginBottom: spacing.lg, borderRadius: radius.lg }}
+        resizeMode="contain"
+        alt="CatalystDigital Logo"
+      />
       <Text style={styles.wordmark}>CatalystDigital</Text>
       <Text style={styles.sub}>Field operations</Text>
       <ActivityIndicator size="small" color={colors.primary} style={styles.loader} />

@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, LogOut } from "lucide-react";
-import { Shield } from "lucide-react";
+import Image from "next/image";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -134,8 +134,8 @@ function SidebarBrand() {
   return (
     <div className="shrink-0 border-b border-sidebar-border px-6 py-6">
       <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-          <Shield className="h-5 w-5" />
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl overflow-hidden bg-transparent">
+          <Image src="/icon.png" alt="CatalystDigital Logo" width={36} height={36} className="h-full w-full object-contain" />
         </div>
         <div className="min-w-0">
           <div className="text-lg font-semibold tracking-tight">CatalystDigital</div>
