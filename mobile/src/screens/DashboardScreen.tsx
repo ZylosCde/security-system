@@ -77,12 +77,21 @@ export function DashboardScreen() {
   const goPatrolScreen = (screen: 'SOS' | 'Incident' | 'OfficerPatrolScan' | 'ScanCheckpoint') => {
     navigation.navigate('Patrols', { screen });
   };
-
   const goSignIn = () => {
     rootNav.navigate('Auth');
   };
 
   const confirmSignOut = () => {
+    if (session?.status === 'in-progress') {
+      Alert.alert(
+        'Patrol in progress',
+        officer?.position === 'VO'
+          ? 'You have an active patrol. Suspend or complete it before signing out.'
+          : 'You have an active patrol. You must scan all checkpoints to complete the patrol before signing out.'
+      );
+      return;
+    }
+
     Alert.alert('Sign out', 'End your officer session on this device?', [
       { text: 'Cancel', style: 'cancel' },
       {

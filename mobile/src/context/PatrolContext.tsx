@@ -20,6 +20,7 @@ import {
   getOfficerAssignment,
   assignDevice as apiAssignDevice,
   ApiClientError,
+  type ApiPatrolState,
 } from '../lib/api-client';
 import { parseDeviceQr, parseOfficerLoginQr, parseCheckpointQrValue } from '../lib/qrService';
 import {
@@ -827,12 +828,11 @@ export function PatrolProvider({ children }: { children: ReactNode }) {
       } catch (e) {
         console.warn('Auto-assigning device to officer failed in startPatrolFromOfficerQr:', e);
       }
-
       try {
         const res = await apiStartPatrol({
-          officerId: verified.officer.id,
-          siteId: verified.assignment.siteId,
-          deviceId: binding.deviceId,
+          officerId: Number(verified.officer.id),
+          siteId: Number(verified.assignment.siteId),
+          deviceId: Number(binding.deviceId),
         });
         await updateLocalCompletedIds([]);
         applyPatrolState(res, []);

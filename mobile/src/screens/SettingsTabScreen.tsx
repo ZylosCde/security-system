@@ -10,9 +10,19 @@ import { rootNavigationRef } from '../navigation/rootNavigationRef';
 export function SettingsTabScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { officer, signOut } = usePatrol();
+  const { officer, signOut, session } = usePatrol();
 
   const onSignOut = () => {
+    if (session?.status === 'in-progress') {
+      Alert.alert(
+        'Patrol in progress',
+        officer?.position === 'VO'
+          ? 'You have an active patrol. Suspend or complete it before signing out.'
+          : 'You have an active patrol. You must scan all checkpoints to complete the patrol before signing out.'
+      );
+      return;
+    }
+
     Alert.alert('Sign out?', 'This device will require officer authentication again.', [
       { text: 'Cancel', style: 'cancel' },
       {

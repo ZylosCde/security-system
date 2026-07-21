@@ -18,6 +18,7 @@ export type MainTabParamList = {
 
 export type RootStackParamList = {
   Splash: undefined;
+  Permissions: undefined;
   Auth: undefined;
   ScanAuthQr: { mode: 'device' | 'officer' };
   OfficerBind: undefined;

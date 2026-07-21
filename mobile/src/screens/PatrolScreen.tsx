@@ -89,15 +89,8 @@ export function PatrolScreen() {
     [route.checkpoints, checkpoints]
   );
 
-  const handleStartPatrol = async () => {
-    setStarting(true);
-    const res = await beginPatrol();
-    setStarting(false);
-    if (!res.ok) {
-      Alert.alert('Cannot start patrol', res.message);
-      return;
-    }
-    navigation.navigate('ScanCheckpoint');
+  const handleStartPatrol = () => {
+    navigation.navigate('OfficerPatrolScan');
   };
 
   const handleRefresh = async () => {
@@ -164,9 +157,8 @@ export function PatrolScreen() {
             <Text style={ui.alertErrorText}>{apiError}</Text>
           </View>
         ) : null}
-
         {!patrolActive && !patrolComplete ? (
-          hasPausedVOPatrol ? (
+          hasPausedVOPatrol && officer.position === 'VO' ? (
             <Pressable
               style={[ui.btnPrimary, styles.blockGap, { backgroundColor: colors.warning || '#f59e0b', borderColor: colors.warning || '#f59e0b' }]}
               onPress={() => void handleResumeVOPatrol()}

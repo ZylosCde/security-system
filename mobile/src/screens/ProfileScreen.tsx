@@ -31,13 +31,23 @@ export function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const { colors, preference, setPreference } = useAppTheme();
-  const { officer, deviceBinding, deviceId, signOut } = usePatrol();
+  const { officer, deviceBinding, deviceId, signOut, session } = usePatrol();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const imeiLabel = deviceBinding
     ? `IMEI ${deviceBinding.imeiNumber} (ID ${deviceBinding.deviceId})`
     : formatImeiDisplay(deviceId);
 
   const onSignOut = () => {
+    if (session?.status === 'in-progress') {
+      Alert.alert(
+        'Patrol in progress',
+        officer?.position === 'VO'
+          ? 'You have an active patrol. Suspend or complete it before signing out.'
+          : 'You have an active patrol. You must scan all checkpoints to complete the patrol before signing out.'
+      );
+      return;
+    }
+
     Alert.alert('Sign out?', 'You will need to sign in again. This handset stays registered.', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -56,9 +66,7 @@ export function ProfileScreen() {
         },
       },
     ]);
-  };
-
-  return (
+  };  return (
     <ScrollView
       style={[styles.root, { paddingTop: insets.top }]}
       contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}

@@ -2,6 +2,8 @@ import React, { useEffect, useMemo } from 'react';
 import { View, ActivityIndicator, Text, StyleSheet, Image } from 'react-native';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Camera } from 'expo-camera';
+import * as Location from 'expo-location';
 import type { RootStackParamList } from '../navigation/types';
 import type { ThemeColors } from '../theme/colors';
 import { spacing, radius } from '../theme/spacing';
@@ -20,30 +22,56 @@ export function SplashScreen() {
 
   useEffect(() => {
     if (!ready || !hydrated) return;
-    const id = setTimeout(() => {
-      if (deviceBinding) {
+    
+    void (async () => {
+      try {
+        const cam = await Camera.getCameraPermissionsAsync();
+        const loc = await Location.getForegroundPermissionsAsync();
+        const mic = await Camera.getMicrophonePermissionsAsync();
+
+        const allGranted = cam.granted && loc.granted && mic.granted;
+
+        if (!allGranted) {
+          navigation.dispatch(
+            CommonActions.reset({
+              index: 0,
+              routes: [{ name: 'Permissions' }],
+            })
+          );
+          return;
+        }
+
+        if (deviceBinding) {
+          navigation.dispatch(
+            CommonActions.reset({
+              index: 0,
+              routes: [
+                {
+                  name: 'Main',
+                  state: { routes: [{ name: 'Home' }], index: 0 },
+                },
+              ],
+            })
+          );
+        } else {
+          navigation.dispatch(
+            CommonActions.reset({
+              index: 0,
+              routes: [{ name: 'ScanAuthQr', params: { mode: 'device' } }],
+            })
+          );
+        }
+      } catch (e) {
+        console.warn('Failed checking permissions in splash:', e);
+        // Fail-safe fallback to Permissions screen
         navigation.dispatch(
           CommonActions.reset({
             index: 0,
-            routes: [
-              {
-                name: 'Main',
-                state: { routes: [{ name: 'Home' }], index: 0 },
-              },
-            ],
+            routes: [{ name: 'Permissions' }],
           })
         );
-        return;
       }
-
-      navigation.dispatch(
-        CommonActions.reset({
-          index: 0,
-          routes: [{ name: 'ScanAuthQr', params: { mode: 'device' } }],
-        })
-      );
-    }, 400);
-    return () => clearTimeout(id);
+    })();
   }, [ready, hydrated, deviceBinding, navigation]);
 
   return (

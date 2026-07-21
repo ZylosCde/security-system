@@ -9,6 +9,7 @@ import { OfficerBindScreen } from '../screens/OfficerBindScreen';
 import { ScanAuthQrScreen } from '../screens/ScanAuthQrScreen';
 import { SplashScreen } from '../screens/SplashScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { PermissionsScreen } from '../screens/PermissionsScreen';
 import { useAppTheme } from '../context/ThemeContext';
 import { usePatrol } from '../context/PatrolContext';
 
@@ -53,6 +54,7 @@ export function RootNavigator() {
         }}
       >
         <Stack.Screen name="Splash" component={SplashScreen} />
+        <Stack.Screen name="Permissions" component={PermissionsScreen} />
         <Stack.Screen name="Main" component={MainTabNavigator} />
         <Stack.Screen name="Auth" component={AuthScreen} />
         <Stack.Screen name="ScanAuthQr" component={ScanAuthQrScreen} />
