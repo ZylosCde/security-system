@@ -15,8 +15,8 @@ import {
   isCommandNavActive,
 } from "@/lib/command-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useAuth } from "@/context/AuthContext";
-import { usePatrolStore } from "@/hooks/usePatrolStore";
+import { useAuth } from "@/features/auth/auth-context";
+import { usePatrolStore } from "@/features/patrols/hooks/use-patrol-store";
 
 function NavSection({
   title,
@@ -96,16 +96,16 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
           <div className="min-w-0 flex-1 text-sm">
             <div className="flex items-center gap-2 truncate font-medium">
               <span className="truncate">{user?.username ?? "User"}</span>
-              {user?.role ? (
+              {user?.role?.name ? (
                 <span
                   className={cn(
                     "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wide",
-                    user.role === "MASTER" && "bg-violet-500/15 text-violet-700 dark:text-violet-300",
-                    user.role === "ADMIN" && "bg-blue-500/15 text-blue-700 dark:text-blue-300",
-                    user.role === "USER" && "bg-muted text-muted-foreground"
+                    user.role.name === "MASTER" && "bg-violet-500/15 text-violet-700 dark:text-violet-300",
+                    user.role.name === "ADMIN" && "bg-blue-500/15 text-blue-700 dark:text-blue-300",
+                    user.role.name === "USER" && "bg-muted text-muted-foreground"
                   )}
                 >
-                  {user.role}
+                  {user.role.name}
                 </span>
               ) : null}
             </div>
@@ -132,17 +132,18 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
 
 function SidebarBrand() {
   return (
-    <div className="shrink-0 border-b border-sidebar-border px-6 py-6">
-      <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl overflow-hidden bg-transparent">
-          <Image src="/icon.png" alt="CatalystDigital Logo" width={36} height={36} className="h-full w-full object-contain" />
-        </div>
-        <div className="min-w-0">
-          <div className="text-lg font-semibold tracking-tight">CatalystDigital</div>
-          <div className="-mt-0.5 text-[10px] text-muted-foreground">COMMAND CENTER</div>
-        </div>
+    <Link
+      href="/"
+      className="flex shrink-0 items-center gap-3 border-b border-sidebar-border px-6 py-6 transition-colors hover:bg-sidebar-accent/40"
+    >
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl overflow-hidden bg-transparent">
+        <Image src="/icon.png" alt="CatalystDigital Logo" width={36} height={36} className="h-full w-full object-contain" />
       </div>
-    </div>
+      <div className="min-w-0">
+        <div className="text-lg font-semibold tracking-tight">CatalystDigital</div>
+        <div className="-mt-0.5 text-[10px] text-muted-foreground">COMMAND CENTER</div>
+      </div>
+    </Link>
   );
 }
 
@@ -154,8 +155,6 @@ export type CommandLayoutProps = {
 
 export function CommandLayout({ header, headerActions, children }: CommandLayoutProps) {
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
-  const pathname = usePathname();
-  const isLogin = pathname === "/login";
   const {
     clients,
     sites,
@@ -164,10 +163,6 @@ export function CommandLayout({ header, headerActions, children }: CommandLayout
     selectedSiteId,
     setSelectedSiteId,
   } = usePatrolStore();
-
-  if (isLogin) {
-    return <>{children}</>;
-  }
 
   return (
     <div className="flex min-h-dvh w-full flex-col bg-background text-foreground lg:h-screen lg:flex-row lg:overflow-hidden">

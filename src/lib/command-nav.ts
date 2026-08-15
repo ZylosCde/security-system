@@ -11,6 +11,7 @@ import {
   UserCog,
   Footprints,
   Timer,
+  CalendarRange,
 } from "lucide-react";
 
 export type CommandNavItem = {
@@ -22,32 +23,33 @@ export type CommandNavItem = {
 };
 
 export const COMMAND_NAV_MAIN: readonly CommandNavItem[] = [
-  { href: "/", label: "Live Operations", icon: MapPin },
-  { href: "/patrols", label: "Patrols", icon: Footprints },
-  { href: "/officers", label: "Officers", icon: Users },
-  { href: "/devices", label: "Devices", icon: Shield },
-  { href: "/checkpoints", label: "Checkpoints", icon: MapPin },
+  { href: "/patrolling", label: "Live Operations", icon: MapPin },
+  { href: "/patrolling/patrols", label: "Patrols", icon: Footprints },
+  { href: "/patrolling/officers", label: "Officers", icon: Users },
+  { href: "/patrolling/roster", label: "Duty Roster", icon: CalendarRange },
+  { href: "/patrolling/devices", label: "Devices", icon: Shield },
+  { href: "/patrolling/checkpoints", label: "Checkpoints", icon: MapPin },
   {
-    href: "/schedules",
+    href: "/patrolling/schedules",
     label: "Routes & Schedules",
     icon: Clock,
-    match: ["/schedules", "/routes"],
+    match: ["/patrolling/schedules", "/patrolling/routes"],
   },
-  { href: "/violations", label: "Violations", icon: AlertTriangle },
-  { href: "/incidents", label: "Incidents", icon: Bell },
-  { href: "/escalations", label: "Schedule Escalations", icon: Timer },
+  { href: "/patrolling/violations", label: "Violations", icon: AlertTriangle },
+  { href: "/patrolling/incidents", label: "Incidents", icon: Bell },
+  { href: "/patrolling/escalations", label: "Schedule Escalations", icon: Timer },
 ] as const;
 
 export const COMMAND_NAV_MASTER: readonly CommandNavItem[] = [
-  { href: "/master/clients", label: "Clients", icon: Building2 },
-  { href: "/master/sites", label: "Sites", icon: MapPinned },
-  { href: "/master/users", label: "Users", icon: UserCog },
+  { href: "/patrolling/master/clients", label: "Clients", icon: Building2 },
+  { href: "/patrolling/master/sites", label: "Sites", icon: MapPinned },
+  { href: "/patrolling/master/users", label: "Users", icon: UserCog },
 ] as const;
 
 export function isCommandNavActive(pathname: string, item: CommandNavItem): boolean {
   if (item.match?.length) {
     return item.match.some((p) => pathname === p || pathname.startsWith(`${p}/`));
   }
-  if (item.href === "/") return pathname === "/";
+  if (item.href === "/patrolling") return pathname === "/patrolling";
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }

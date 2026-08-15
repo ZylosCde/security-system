@@ -1,6 +1,3 @@
-// AEGIS Patrol System - Core Type Definitions
-// Complete data model matching the spec
-
 export type DeviceStatus = 'active' | 'offline' | 'maintenance';
 export type OfficerStatus = 'on-duty' | 'off-duty' | 'on-break';
 export type PatrolStatus = 'scheduled' | 'in-progress' | 'completed' | 'violated' | 'cancelled' | 'paused';
@@ -26,10 +23,9 @@ export interface Officer {
   name: string;
   nic: string;
   status: OfficerStatus;
-  shift: string;
   phone: string;
   avatar?: string;
-  position?: "JPO" | "SPO" | "VO";
+  officerType?: string;
 }
 
 export interface Checkpoint {
@@ -48,8 +44,8 @@ export interface Checkpoint {
 export interface Route {
   id: string;
   name: string;
-  checkpoints: string[]; // checkpoint IDs in order
-  expectedDuration: number; // minutes
+  checkpoints: string[];
+  expectedDuration: number;
   recurrence: string;
 }
 
@@ -157,7 +153,6 @@ export interface SOSEvent {
   status: 'active' | 'resolved';
 }
 
-// Live dashboard stats
 export interface DashboardStats {
   activePatrols: number;
   complianceRate: number;

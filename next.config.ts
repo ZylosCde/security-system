@@ -2,8 +2,8 @@ import type { NextConfig } from "next";
 
 const apiBackend =
   process.env.API_BACKEND_URL?.replace(/\/$/, "") ??
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ??
-  "https://catalyst-security.zyloscode.com";
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? 
+  "http://localhost:5000/api/v1";
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -18,8 +18,8 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: "/api/:path*",
-        destination: `${apiBackend}/api/:path*`,
+        source: "/api/v1/:path*",
+        destination: `${apiBackend}/:path*`,
       },
     ];
   },
