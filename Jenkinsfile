@@ -1,3 +1,12 @@
+// Jenkinsfile for security-system (Next.js frontend)
+// Place this at the ROOT of the security-system repo (same level as package.json).
+//
+// NOTE: The Jenkins container itself has no Node.js installed — confirmed via
+// `docker exec jenkins node -v` failing. "Install & Lint" and "Test" therefore
+// run inside a throwaway node:20-alpine container (matches prod.app.dockerfile)
+// via the Docker Pipeline plugin's docker.image().inside{} — not on the
+// Jenkins host directly. Requires the Docker Pipeline plugin (already checked).
+
 pipeline {
     agent any
 
@@ -20,29 +29,38 @@ pipeline {
         DEPLOYED_LOG         = '/opt/app-config/frontend-deployed.log'
         NEXT_PUBLIC_API_URL  = 'https://api-catalyst-security.zyloscode.com'
         API_BACKEND_URL      = 'http://backend-staging:5000'
+        NODE_IMAGE           = 'node:20-alpine'
     }
 
     stages {
 
         stage('Install & Lint') {
             steps {
-                sh '''
-                    node -v
-                    npm ci
-                    npm run lint
-                '''
+                script {
+                    docker.image(env.NODE_IMAGE).inside('-u root') {
+                        sh '''
+                            node -v
+                            npm ci
+                            npm run lint
+                        '''
+                    }
+                }
             }
         }
 
         stage('Test') {
             steps {
-                sh '''
-                    if npm run | grep -qE '^\\s*test'; then
-                        npm test
-                    else
-                        echo "No test script defined in package.json — skipping"
-                    fi
-                '''
+                script {
+                    docker.image(env.NODE_IMAGE).inside('-u root') {
+                        sh '''
+                            if npm run | grep -qE '^\\s*test'; then
+                                npm test
+                            else
+                                echo "No test script defined in package.json — skipping"
+                            fi
+                        '''
+                    }
+                }
             }
         }
 
