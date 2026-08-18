@@ -3,10 +3,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { PatrolProvider } from "@/hooks/usePatrolStore";
 import { ThemeProvider } from "@/components/theme-provider";
-import { AuthProvider } from "@/context/AuthContext";
-import { RouteGuard } from "@/components/route-guard";
+import { AuthProvider } from "@/features/auth/auth-context";
+import { PatrolProvider } from "@/features/patrols/hooks/use-patrol-store";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,9 +40,7 @@ export default function RootLayout({
         <ThemeProvider>
           <TooltipProvider>
             <AuthProvider>
-              <PatrolProvider>
-                <RouteGuard>{children}</RouteGuard>
-              </PatrolProvider>
+              <PatrolProvider>{children}</PatrolProvider>
             </AuthProvider>
             <Toaster position="top-center" richColors closeButton />
           </TooltipProvider>

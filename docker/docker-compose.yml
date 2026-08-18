@@ -9,11 +9,17 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
         API_BACKEND_URL: ${API_BACKEND_URL:-}
     container_name: catalyst_web
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
-      - "${APP_PORT:-3002}:3002"
+      - "${APP_PORT:-3000}:3000"
+    volumes:
+      - ../:/app
+      - /app/node_modules
+      - /app/.next
     environment:
-      - NODE_ENV=production
-      - PORT=3002
+      - NODE_ENV=development
+      - PORT=3000
       - HOSTNAME=0.0.0.0
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-}
       - API_BACKEND_URL=${API_BACKEND_URL:-}

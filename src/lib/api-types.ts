@@ -1,20 +1,34 @@
-// API response shapes from Catalyst Security Demo backend
-
-export type UserRole = "MASTER" | "ADMIN" | "USER";
-export type OfficerPosition = "JPO" | "SPO" | "VO";
 export type DeviceType = "DESKTOP" | "LAPTOP" | "MOBILE" | "TABLET";
 export type PatrolStatus = "IN_PROGRESS" | "COMPLETED" | "PAUSED";
+export type ScheduleTaskStatus = "PENDING" | "COMPLETED" | "MISSED";
 
 export interface ApiError {
   success: false;
   message: string;
 }
 
+export interface ApiRole {
+  id: number;
+  name: string;
+  description: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ApiOfficerType {
+  id: number;
+  name: string;
+  description: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface ApiUser {
   id: number;
   email: string;
   username: string;
-  role: UserRole;
+  roleId: number;
+  role: ApiRole;
 }
 
 export interface ApiSite {
@@ -36,7 +50,7 @@ export interface ApiOfficer {
   id: number;
   officerName: string;
   NIC: string;
-  Position: OfficerPosition;
+  officerType: ApiOfficerType;
 }
 
 export interface ApiDevice {
@@ -108,4 +122,43 @@ export interface ApiPatrolListItem {
 export interface ApiSiteWithCounts extends ApiSite {
   checkpointCount?: number;
   deviceCount?: number;
+}
+
+export interface ApiRosterAssignment {
+  id: number;
+  rosterId: number;
+  officerId: number;
+  shiftStart: string;
+  shiftEnd: string;
+  roster?: ApiRoster;
+  officer?: ApiOfficer;
+}
+
+export interface ApiRoster {
+  id: number;
+  siteId: number;
+  name: string;
+  startDate: string;
+  endDate: string;
+  site?: ApiSite;
+  assignments?: ApiRosterAssignment[];
+}
+
+export interface ApiScheduleTask {
+  id: number;
+  scheduleId: number;
+  checkpointId: number;
+  scheduledTime: string;
+  status: ScheduleTaskStatus | string;
+  checkpoint?: ApiCheckpoint;
+}
+
+export interface ApiSchedule {
+  id: number;
+  rosterAssignmentId: number;
+  officerId: number;
+  date: string;
+  rosterAssignment?: ApiRosterAssignment;
+  officer?: ApiOfficer;
+  tasks?: ApiScheduleTask[];
 }

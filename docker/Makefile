@@ -1,4 +1,4 @@
-DC := docker compose -f docker-compose.yml
+DC := docker compose --env-file ../.env -f docker-compose.yml
 
 .PHONY: help build up up-detach down down-volumes logs app-logs db-logs app-shell db-shell migrate migrate-dev seed restart clean
 

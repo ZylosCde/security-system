@@ -2,86 +2,103 @@ pipeline {
     agent any
 
     options {
-        timestamps()
         disableConcurrentBuilds()
-        buildDiscarder(logRotator(numToKeepStr: '10'))
+        buildDiscarder(logRotator(numToKeepStr: '30'))
+        timestamps()
+    }
+
+    parameters {
+        booleanParam(name: 'DEPLOY_TO_STAGING', defaultValue: false,
+            description: 'Deploy this build to staging after tests pass')
     }
 
     environment {
-        APP_NAME       = 'security-system'
-        APP_PORT       = '3002'
-        GIT_REPO       = 'https://github.com/ZylosCde/security-system.git'
-        GIT_BRANCH     = 'prod'
-        COMPOSE_FILE   = 'docker/docker-compose.yml'
+        IMAGE_NAME           = 'security-system'
+        IMAGE_TAG            = "${env.GIT_COMMIT ? env.GIT_COMMIT.take(8) : env.BUILD_NUMBER}"
+        CONTAINER            = 'frontend-staging'
+        EDGE_NETWORK         = 'edge'
+        DEPLOYED_LOG         = '/opt/app-config/frontend-deployed.log'
+        NEXT_PUBLIC_API_URL  = 'https://api-catalyst-security.zyloscode.com'
+        API_BACKEND_URL      = 'http://backend-staging:5000'
     }
 
     stages {
-        stage('Checkout source') {
-            steps {
-                deleteDir()
-                git branch: "${GIT_BRANCH}", url: "${GIT_REPO}"
-            }
-        }
 
-        stage('Preflight') {
-            steps {
-                script {
-                    def composeCmd = sh(
-                        script: '''
-                            set -eu
-                            if docker compose version >/dev/null 2>&1; then
-                              echo "docker compose"
-                            elif command -v docker-compose >/dev/null 2>&1; then
-                              echo "docker-compose"
-                            else
-                              echo "ERROR: install Docker Compose (docker compose plugin or docker-compose package)" >&2
-                              exit 1
-                            fi
-                        ''',
-                        returnStdout: true
-                    ).trim()
-                    env.COMPOSE_CMD = composeCmd
-                    echo "Using: ${composeCmd}"
-                }
-            }
-        }
-
-        stage('Build image locally') {
+        stage('Install & Lint') {
             steps {
                 sh '''
-                    set -eu
-                    docker build -f docker/files/dev.app.dockerfile -t security-system:latest .
+                    node -v
+                    npm ci
+                    npm run lint
                 '''
             }
         }
 
-        stage('Deploy locally') {
+        stage('Test') {
             steps {
-                dir('docker') {
-                    sh '''
-                        set -eu
-                        ${COMPOSE_CMD} -f docker-compose.yml down --remove-orphans || true
-                        ${COMPOSE_CMD} -f docker-compose.yml up -d --build --remove-orphans
-                    '''
+                sh '''
+                    if npm run | grep -qE '^\\s*test'; then
+                        npm test
+                    else
+                        echo "No test script defined in package.json — skipping"
+                    fi
+                '''
+            }
+        }
+
+        stage('Build image') {
+            steps {
+                sh """
+                    docker build -f docker/files/prod.app.dockerfile \
+                        --build-arg NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
+                        --build-arg API_BACKEND_URL=${API_BACKEND_URL} \
+                        -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                """
+            }
+        }
+
+        stage('Approve deploy') {
+            when { expression { params.DEPLOY_TO_STAGING } }
+            steps {
+                timeout(time: 15, unit: 'MINUTES') {
+                    input message: "Deploy ${env.IMAGE_NAME}:${env.IMAGE_TAG} (branch ${env.BRANCH_NAME}) to staging?"
                 }
             }
         }
 
-        stage('Health check') {
+        stage('Deploy') {
+            when { expression { params.DEPLOY_TO_STAGING } }
             steps {
                 sh '''
-                    set -eu
-                    for i in $(seq 1 30); do
-                        if ${COMPOSE_CMD} -f docker-compose.yml exec -T web sh -c \
-                          "node -e \"require('http').get('http://127.0.0.1:' + (process.env.PORT || 3002), r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\"" \
-                          >/dev/null 2>&1; then
-                            echo "App is healthy on ${APP_PORT}"
+                    docker network create ${EDGE_NETWORK} 2>/dev/null || true
+                    docker stop ${CONTAINER} 2>/dev/null || true
+                    docker rm ${CONTAINER} 2>/dev/null || true
+                    docker run -d \
+                        --name ${CONTAINER} \
+                        --network ${EDGE_NETWORK} \
+                        --restart unless-stopped \
+                        --memory=768m --cpus=1.0 \
+                        -e NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
+                        -e API_BACKEND_URL=${API_BACKEND_URL} \
+                        ${IMAGE_NAME}:${IMAGE_TAG}
+                '''
+            }
+        }
+
+        stage('Health check') {
+            when { expression { params.DEPLOY_TO_STAGING } }
+            steps {
+                sh '''
+                    for i in $(seq 1 15); do
+                        STATUS=$(docker inspect --format="{{.State.Health.Status}}" ${CONTAINER} 2>/dev/null || echo "starting")
+                        if [ "$STATUS" = "healthy" ]; then
+                            echo "Container is healthy"
                             exit 0
                         fi
-                        sleep 2
+                        echo "Attempt $i: status=$STATUS, waiting..."
+                        sleep 4
                     done
-                    echo 'Health check failed'
-                    ${COMPOSE_CMD} -f docker-compose.yml logs --tail=80 web || true
+                    echo "Container did not report healthy in time — check 'docker logs ${CONTAINER}'"
                     exit 1
                 '''
             }
@@ -90,19 +107,40 @@ pipeline {
 
     post {
         success {
-            echo "Deployment succeeded: http://127.0.0.1:${APP_PORT}"
+            script {
+                if (params.DEPLOY_TO_STAGING) {
+                    sh "echo ${IMAGE_TAG} >> ${DEPLOYED_LOG}"
+                }
+            }
         }
         failure {
             script {
-                dir('docker') {
+                if (params.DEPLOY_TO_STAGING) {
                     sh '''
-                        echo '=== Deploy failed - container status ==='
-                        ${COMPOSE_CMD} -f docker-compose.yml ps || true
-                        echo '=== Web logs ==='
-                        ${COMPOSE_CMD} -f docker-compose.yml logs --tail=60 web || true
+                        LAST_GOOD=$(tail -n 1 ${DEPLOYED_LOG} 2>/dev/null || echo "")
+                        if [ -n "$LAST_GOOD" ]; then
+                            echo "Rolling back to ${IMAGE_NAME}:${LAST_GOOD}"
+                            docker stop ${CONTAINER} 2>/dev/null || true
+                            docker rm ${CONTAINER} 2>/dev/null || true
+                            docker run -d \
+                                --name ${CONTAINER} \
+                                --network ${EDGE_NETWORK} \
+                                --restart unless-stopped \
+                                -e NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
+                                -e API_BACKEND_URL=${API_BACKEND_URL} \
+                                ${IMAGE_NAME}:${LAST_GOOD}
+                        else
+                            echo "No prior successful deploy recorded — nothing to roll back to"
+                        fi
                     '''
                 }
             }
+        }
+        always {
+            sh 'docker image prune -f --filter "until=48h" || true'
+        }
+        cleanup {
+            cleanWs()
         }
     }
 }

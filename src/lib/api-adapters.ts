@@ -14,9 +14,8 @@ export function apiOfficerToOfficer(o: ApiOfficer): Officer {
     name: o.officerName,
     nic: o.NIC,
     status: "on-duty",
-    shift: o.Position === "VO" ? "Flexible Shift" : "22:00–06:00",
     phone: "",
-    position: o.Position,
+    officerType: o.officerType?.name,
   };
 }
 
